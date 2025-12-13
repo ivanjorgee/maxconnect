@@ -16,7 +16,7 @@ import { ActivityForm } from "@/components/leads/activity-form";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { canalLabels, interacaoLabels, origemLabels, statusLabels, tipoSiteLabels } from "@/lib/dictionaries";
-import { getEmpresaById } from "@/lib/data";
+import { EmpresaWithInteracoes, getEmpresaById } from "@/lib/data";
 import { formatDate, formatRelative } from "@/lib/utils";
 import { CompanyEditModal } from "@/components/companies/company-edit-modal";
 import { requirePageAuth } from "@/lib/requirePageAuth";
@@ -141,7 +141,7 @@ function InfoRow({ icon, label, value, action }: { icon: ReactNode; label: strin
   );
 }
 
-function Timeline({ interacoes }: { interacoes: Awaited<ReturnType<typeof getEmpresaById>>["interacoes"] }) {
+function Timeline({ interacoes }: { interacoes: EmpresaWithInteracoes["interacoes"] }) {
   return (
     <div className="card card-hover p-4">
       <div className="flex items-center justify-between pb-2">
