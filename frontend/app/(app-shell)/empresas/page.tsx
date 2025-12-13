@@ -23,6 +23,11 @@ export default async function CompaniesPage({
   const temSite =
     typeof searchParams.temSite === "string" ? (searchParams.temSite === "true" ? true : searchParams.temSite === "false" ? false : null) : null;
 
+  const normalizedAction: "none" | "today" | "overdue" | null =
+    searchParams.action === "none" || searchParams.action === "today" || searchParams.action === "overdue"
+      ? searchParams.action
+      : null;
+
   const companies = await getEmpresas({
     status: searchParams.status ?? null,
     cidade: searchParams.cidade ?? null,
@@ -30,7 +35,7 @@ export default async function CompaniesPage({
     tipoSite: searchParams.tipoSite ?? null,
     temSite,
     busca: searchParams.q ?? null,
-    action: searchParams.action ?? null,
+    action: normalizedAction,
     followup1Pending: searchParams.followup1Pending === "true",
   });
 
