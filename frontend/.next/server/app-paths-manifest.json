@@ -1,0 +1,6 @@
+{
+  "/(app-shell)/settings/page": "app/(app-shell)/settings/page.js",
+  "/(app-shell)/page": "app/(app-shell)/page.js",
+  "/(app-shell)/empresas/page": "app/(app-shell)/empresas/page.js",
+  "/(app-shell)/leads/page": "app/(app-shell)/leads/page.js"
+}

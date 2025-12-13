@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoInteracao" ADD VALUE 'FOLLOWUP_CONVERSA';

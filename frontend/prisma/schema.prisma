@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusFunil {
+  NOVO
+  MENSAGEM_1_ENVIADA
+  RESPONDEU
+  EM_CONVERSA
+  REUNIAO_AGENDADA
+  REUNIAO_REALIZADA
+  PROPOSTA_ENVIADA
+  FECHADO
+  PERDIDO
+  FOLLOWUP_LONGO
+}
+
+enum TipoSite {
+  NENHUM
+  FRACO
+  RAZOAVEL
+  BOM
+}
+
+enum OrigemLead {
+  GOOGLE_MAPS
+  INSTAGRAM
+  INDICACAO
+  OUTRO
+}
+
+enum Canal {
+  WHATSAPP
+  INSTAGRAM_DM
+  LIGACAO
+  EMAIL
+}
+
+enum TicketMedioEstimado {
+  BAIXO
+  MEDIO
+  ALTO
+}
+
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum ModeloAbertura {
+  M1
+  M2
+  M3
+  M4
+  M5
+}
+
+enum TipoInteracao {
+  MENSAGEM_1
+  FOLLOWUP_1
+  FOLLOWUP_2
+  FOLLOWUP_CONVERSA
+  MENSAGEM_WHATSAPP
+  MENSAGEM_INSTAGRAM
+  LIGACAO
+  REUNIAO
+  OUTRO
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  passwordHash String?
+  role      String?
+  createdAt DateTime @default(now())
+  empresas  Empresa[]
+}
+
+model Empresa {
+  id                   String            @id @default(cuid())
+  nome                 String
+  endereco             String
+  cidade               String
+  telefonePrincipal    String?
+  whatsapp             String?
+  website              String?
+  instagram            String?
+  avaliacaoGoogle      Float?
+  qtdAvaliacoes        Int?
+  linkGoogleMaps       String
+  temSite              Boolean           @default(false)
+  tipoSite             TipoSite          @default(NENHUM)
+  origemLead           OrigemLead
+  canalPrincipal       Canal
+  especialidadePrincipal String?
+  ticketMedioEstimado  TicketMedioEstimado?
+  prioridade           Prioridade        @default(MEDIA)
+  statusFunil          StatusFunil       @default(NOVO)
+  modeloAbertura       ModeloAbertura?
+  dataMensagem1        DateTime?
+  dataFollowup1        DateTime?
+  dataFollowup2        DateTime?
+  dataReuniao          DateTime?
+  dataFechamento       DateTime?
+  proximaAcao          String?
+  proximaAcaoData      DateTime?
+  tags                 String[]
+  observacoes          String?
+  interacoes           Interacao[]
+  ownerId              String?
+  owner                User?             @relation(fields: [ownerId], references: [id])
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([statusFunil])
+  @@index([proximaAcaoData])
+}
+
+model Interacao {
+  id        String     @id @default(cuid())
+  empresaId String
+  empresa   Empresa    @relation(fields: [empresaId], references: [id])
+  tipo      TipoInteracao
+  canal     Canal
+  data      DateTime
+  descricao String
+  createdAt DateTime   @default(now())
+}

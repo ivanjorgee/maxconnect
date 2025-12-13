@@ -1,0 +1,36 @@
+{
+  "pages": {
+    "/(app-shell)/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app-shell)/page.js"
+    ],
+    "/(app-shell)/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/(app-shell)/layout.css",
+      "static/chunks/app/(app-shell)/layout.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
+    ],
+    "/(app-shell)/settings/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app-shell)/settings/page.js"
+    ],
+    "/(app-shell)/empresas/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app-shell)/empresas/page.js"
+    ],
+    "/(app-shell)/leads/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app-shell)/leads/page.js"
+    ]
+  }
+}

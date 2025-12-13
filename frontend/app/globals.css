@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(244, 93, 11, 0.08), transparent 28%),
+      radial-gradient(circle at 80% 10%, rgba(244, 93, 11, 0.04), transparent 22%),
+      linear-gradient(180deg, rgba(15, 22, 32, 0.7), rgba(5, 6, 9, 0.9)),
+      url("/noise.svg");
+    background-size: cover, cover, cover, 240px 240px;
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: rgba(244, 93, 11, 0.35);
+    color: #f8fafc;
+  }
+
+  * {
+    @apply border-stroke/70;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-background-soft border border-stroke/60 rounded-xl shadow-card-border;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-glow-primary hover:border-primary/60;
+  }
+
+  .muted {
+    @apply text-muted;
+  }
+}
+
+@layer utilities {
+  .grid-overlay {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+    background-size: 28px 28px;
+  }
+
+  .thin-scrollbar {
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+    scrollbar-width: thin;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+  }
+}
