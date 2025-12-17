@@ -48,7 +48,11 @@ export function getProximaAcaoSugerida(ctx: ContextoProximaAcao): { proximaAcao:
     return { proximaAcao: "FOLLOW_UP_1", proximaAcaoData: addDays(hoje, 2) };
   }
 
-  if ([StatusFunil.FECHADO, StatusFunil.PERDIDO, StatusFunil.FOLLOWUP_LONGO].includes(ctx.statusFunil)) {
+  if (
+    ctx.statusFunil === StatusFunil.FECHADO ||
+    ctx.statusFunil === StatusFunil.PERDIDO ||
+    ctx.statusFunil === StatusFunil.FOLLOWUP_LONGO
+  ) {
     return { proximaAcao: null, proximaAcaoData: null };
   }
 
