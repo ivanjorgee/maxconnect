@@ -199,6 +199,8 @@ export async function createEmpresa(data: {
   modeloAbertura?: ModeloAbertura;
   tags?: string[];
   observacoes?: string;
+  proximaAcao?: string | null;
+  proximaAcaoData?: Date | string | null;
 }) {
   return prisma.empresa.create({
     data: {
