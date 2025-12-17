@@ -1,4 +1,4 @@
-import { Prisma, StatusFunil, TipoInteracao, Canal } from "@prisma/client";
+import { Prisma, StatusFunil, TipoInteracao, Canal, ModeloAbertura } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export type ProximaAcao =
@@ -90,7 +90,7 @@ const macroConfig: Record<
   {
     tipoInteracao: TipoInteracao;
     novoStatus: StatusFunil;
-    descricao: (input: { modeloAbertura?: string | null }) => string;
+    descricao: (input: { modeloAbertura?: ModeloAbertura | null }) => string;
     proximaAcao?: ProximaAcao | null;
     proximaAcaoOffsetDays?: number;
     proximaAcaoOffsetHours?: number;
@@ -158,7 +158,7 @@ export async function registrarInteracaoMacro(params: {
   macro: MacroTipo;
   canal?: Canal | null;
   data?: Date | string | null;
-  modeloAbertura?: string | null;
+  modeloAbertura?: ModeloAbertura | null;
   descricaoExtra?: string | null;
 }) {
   const empresa = await prisma.empresa.findUnique({ where: { id: params.empresaId } });
@@ -206,7 +206,7 @@ export async function registrarInteracaoMacro(params: {
       dataFollowup1: params.macro === "FOLLOWUP_1" ? agora : empresa.dataFollowup1,
       dataFollowup2: params.macro === "FOLLOWUP_2" ? agora : empresa.dataFollowup2,
       dataReuniao: cfg.novoStatus === StatusFunil.REUNIAO_AGENDADA ? dataReuniaoEscolhida : empresa.dataReuniao,
-      modeloAbertura: empresa.modeloAbertura ?? params.modeloAbertura ?? undefined,
+      modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura ?? undefined,
     };
 
     const updated = await tx.empresa.update({
