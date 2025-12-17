@@ -238,7 +238,7 @@ export async function updateEmpresa(
       | "observacoes"
       | "proximaAcao"
       | "proximaAcaoData"
-    > & { dataMensagem1?: Date | string }
+    > & { dataMensagem1?: Date | string | null }
   >,
 ) {
   return prisma.empresa.update({
