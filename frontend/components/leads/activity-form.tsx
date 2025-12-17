@@ -76,7 +76,7 @@ export function ActivityForm({ empresa }: Props) {
       const modelo = modelosAbertura.find((m) => m.codigo === code);
       return modelo?.texto ?? null;
     }
-  if (macro === "FOLLOWUP_1" || macro === "FOLLOWUP_CONVERSA") {
+  if (macro === "FOLLOWUP_1") {
     return modelosFollowUp1[code]?.texto ?? null;
   }
   if (macro === "FOLLOWUP_2") {
