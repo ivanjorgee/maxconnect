@@ -352,8 +352,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   }).length;
   const metaMes = 30;
 
-  const leadsQuentes = empresas.filter((empresa) =>
-    [StatusFunil.EM_CONVERSA, StatusFunil.REUNIAO_AGENDADA].includes(empresa.statusFunil),
+  const leadsQuentes = empresas.filter(
+    (empresa) =>
+      empresa.statusFunil === StatusFunil.EM_CONVERSA || empresa.statusFunil === StatusFunil.REUNIAO_AGENDADA,
   ).length;
 
   const tarefasHoje = empresas.filter(
