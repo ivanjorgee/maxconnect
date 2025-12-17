@@ -249,8 +249,8 @@ function defaultDescricao(tipo: TipoInteracao, modelo?: string | null) {
   if (tipo === TipoInteracao.MENSAGEM_1) return `Mensagem 1 enviada${modelo ? ` (modelo ${modelo})` : ""}.`;
   if (tipo === TipoInteracao.FOLLOWUP_1) return "Follow-up 1 enviado.";
   if (tipo === TipoInteracao.FOLLOWUP_2) return "Follow-up 2 enviado.";
+  if (tipo === TipoInteracao.FOLLOWUP_CONVERSA) return "Follow-up de conversa enviado.";
   if (tipo === TipoInteracao.REUNIAO) return "Reunião agendada.";
-  if (tipo === TipoInteracao.REUNIAO_REALIZADA) return "Reunião realizada.";
   return "Interação registrada.";
 }
 

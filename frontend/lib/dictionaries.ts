@@ -80,6 +80,7 @@ export const interacaoLabels: Record<TipoInteracao, string> = {
   MENSAGEM_1: "Mensagem 1",
   FOLLOWUP_1: "Follow-up 1",
   FOLLOWUP_2: "Follow-up 2",
+  FOLLOWUP_CONVERSA: "Follow-up conversa",
   MENSAGEM_WHATSAPP: "Mensagem WhatsApp",
   MENSAGEM_INSTAGRAM: "Mensagem Instagram",
   LIGACAO: "Ligação",
