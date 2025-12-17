@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiAuth, unauthorizedResponse } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   try {
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     const data = await getDashboardData();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching dashboard", error);
+    logger.error("Error fetching dashboard", { error });
     return NextResponse.json({ error: "Erro ao carregar dashboard" }, { status: 500 });
   }
 }

@@ -9,7 +9,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "MaximosConect CRM",
+  title: "Maxconect Crm",
   description: "CRM B2B focado em prospecção para clínicas de estética.",
 };
 

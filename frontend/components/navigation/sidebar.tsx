@@ -37,7 +37,7 @@ function Logo() {
         <Sparkles size={18} />
       </div>
       <div className="leading-tight hidden md:block">
-        <p className="text-sm font-semibold text-foreground">MaximosConect</p>
+        <p className="text-sm font-semibold text-foreground">Maxconect Crm</p>
         <p className="text-[11px] text-muted">CRM B2B Estética</p>
       </div>
     </div>

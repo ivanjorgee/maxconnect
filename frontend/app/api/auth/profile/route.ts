@@ -2,8 +2,8 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiAuth, setAuthCookie, signAuthToken, unauthorizedResponse } from "@/lib/auth";
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { logger } from "@/lib/logger";
+import { formatZodError, profileUpdateSchema } from "@/lib/validation";
 
 export async function GET(request: Request) {
   const auth = await requireApiAuth(request);
@@ -20,29 +20,17 @@ export async function PATCH(request: Request) {
     const auth = await requireApiAuth(request);
     if (!auth) return unauthorizedResponse();
 
-    const payload = (await request.json()) as {
-      email?: string;
-      name?: string;
-      currentPassword?: string;
-      newPassword?: string;
-    };
-
-    const currentPassword = (payload.currentPassword || "").toString();
-    const newPassword = payload.newPassword ? payload.newPassword.toString() : "";
-    const normalizedEmail = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : null;
-    const name = typeof payload.name === "string" ? payload.name.trim() : null;
-
-    if (!currentPassword) {
-      return NextResponse.json({ error: "Informe a senha atual para atualizar os dados." }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = profileUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Dados invalidos.", details: formatZodError(parsed.error) },
+        { status: 400 },
+      );
     }
 
-    if (newPassword && newPassword.length < 8) {
-      return NextResponse.json({ error: "A nova senha deve ter pelo menos 8 caracteres." }, { status: 400 });
-    }
-
-    if (normalizedEmail && !emailRegex.test(normalizedEmail)) {
-      return NextResponse.json({ error: "Formato de email inválido." }, { status: 400 });
-    }
+    const { currentPassword, newPassword, email, name } = parsed.data;
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
 
     const user = await prisma.user.findUnique({ where: { id: auth.userId } });
     if (!user || !user.passwordHash) return unauthorizedResponse();
@@ -54,7 +42,7 @@ export async function PATCH(request: Request) {
 
     const updates: Record<string, unknown> = {};
     if (normalizedEmail) updates.email = normalizedEmail;
-    if (name) updates.name = name;
+    if (name) updates.name = name.trim();
     if (newPassword) updates.passwordHash = await bcrypt.hash(newPassword, 10);
 
     if (!Object.keys(updates).length) {
@@ -71,7 +59,7 @@ export async function PATCH(request: Request) {
     setAuthCookie(response, token);
     return response;
   } catch (error) {
-    console.error("Erro ao atualizar perfil:", error);
+    logger.error("Erro ao atualizar perfil", { error });
     return NextResponse.json({ error: "Erro ao atualizar perfil" }, { status: 500 });
   }
 }

@@ -11,6 +11,7 @@ import { ProspeccaoSession } from "./prospeccao-session";
 import { LeadsList } from "./leads-list";
 import { LeadDetailPanel } from "./lead-detail-panel";
 import { LeadsMobile } from "./leads-mobile";
+import { isConversaPending, isFollowup1Pending } from "@/lib/followup-rules";
 
 type QuickFilter = "all" | "today" | "overdue";
 
@@ -55,21 +56,12 @@ export default function LeadsClient({ empresas, startSession = false, filter }: 
         return dates.some((d) => isPast(d) && !isToday(d));
       }
       if (followupPending) {
-        const limit = Date.now() - 24 * 60 * 60 * 1000;
-        const last = empresa.interacoes[0];
-        const lastIsM1 = last?.tipo === "MENSAGEM_1";
-        const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
-        const noAction = !empresa.proximaAcao;
-        if (!(empresa.statusFunil === StatusFunil.MENSAGEM_1_ENVIADA && lastIsM1 && lastIsOlder && noAction)) {
+        if (!isFollowup1Pending(empresa)) {
           return false;
         }
       }
       if (conversaPending) {
-        const limit = Date.now() - 24 * 60 * 60 * 1000;
-        const last = empresa.interacoes[0];
-        const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
-        const noAction = !empresa.proximaAcao;
-        if (!(empresa.statusFunil === StatusFunil.EM_CONVERSA && lastIsOlder && !empresa.dataReuniao && noAction)) {
+        if (!isConversaPending(empresa)) {
           return false;
         }
       }

@@ -1027,6 +1027,9 @@ video {
 .border-red-800\/70 {
   border-color: rgb(153 27 27 / 0.7);
 }
+.border-stroke\/30 {
+  border-color: rgb(31 41 55 / 0.3);
+}
 .border-stroke\/60 {
   border-color: rgb(31 41 55 / 0.6);
 }
@@ -1331,6 +1334,9 @@ video {
 .text-muted {
   --tw-text-opacity: 1;
   color: rgb(156 163 175 / var(--tw-text-opacity));
+}
+.text-muted\/50 {
+  color: rgb(156 163 175 / 0.5);
 }
 .text-pink-400 {
   --tw-text-opacity: 1;

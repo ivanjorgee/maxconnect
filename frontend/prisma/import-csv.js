@@ -1,4 +1,4 @@
-/* Simple CSV importer for MaximosConect.
+/* Simple CSV importer for Maxconect Crm.
    Usage: CSV_PATH=./clinicas.csv node prisma/import-csv.js
    Expected headers (case-insensitive):
    nome,endereco,cidade,telefone,whatsapp,website,avaliacaoGoogle,qtdAvaliacoes,linkGoogleMaps,origemLead,canalPrincipal,tipoSite */

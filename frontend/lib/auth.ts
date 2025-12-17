@@ -1,24 +1,26 @@
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
+import { env, isDev } from "./env";
+import { logger } from "./logger";
 
 export type AuthPayload = { userId: string; email: string; name?: string };
 
 export const AUTH_COOKIE = "mc_auth_token";
-const devBypassEnabled = (process.env.AUTH_DEV_BYPASS || "false").toLowerCase() === "true";
-const devUserEmail = process.env.AUTH_DEFAULT_EMAIL || "dev@maxconnect.local";
-const devUserName = process.env.AUTH_DEFAULT_USER || "Dev User";
+const devBypassEnabled = env.AUTH_DEV_BYPASS === "true" && isDev;
+const devUserEmail = env.AUTH_DEFAULT_EMAIL || "dev@maxconect.local";
+const devUserName = env.AUTH_DEFAULT_USER || "Dev User";
 const devUserId = "dev-user";
 
 function getJwtSecret() {
-  const secret = process.env.AUTH_JWT_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+  const secret = env.AUTH_JWT_SECRET || process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
     if (devBypassEnabled) {
-      const fallback = "dev-secret-maxconnect";
-      console.warn("AUTH_JWT_SECRET não definido; usando chave padrão apenas para desenvolvimento local.");
+      const fallback = "dev-secret-maxconect";
+      logger.warn("AUTH_JWT_SECRET nao definido; usando chave padrao apenas para desenvolvimento local.");
       return new TextEncoder().encode(fallback);
     }
-    throw new Error("AUTH_JWT_SECRET não definido. Configure uma chave segura no ambiente.");
+    throw new Error("AUTH_JWT_SECRET nao definido. Configure uma chave segura no ambiente.");
   }
   return new TextEncoder().encode(secret);
 }

@@ -15,6 +15,7 @@ import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
 import { MacroTipo } from "@/lib/proximaAcao";
 import { modelosFollowUp1 } from "@/lib/modelosFollowup";
+import { isConversaPending, isFollowup1Pending } from "@/lib/followup-rules";
 import { FollowupConversaAction } from "./followup-conversa-action";
 
 type Props = {
@@ -45,21 +46,8 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
     return code ? modelosFollowUp1[code] : null;
   }, [company.modeloAbertura, modeloAbertura]);
 
-  const isFollowup1Pending = useMemo(() => {
-    const limit = Date.now() - 24 * 60 * 60 * 1000;
-    const last = company.interacoes[0];
-    const lastIsM1 = last?.tipo === "MENSAGEM_1";
-    const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
-    const noAction = !company.proximaAcao;
-    return company.statusFunil === "MENSAGEM_1_ENVIADA" && lastIsM1 && lastIsOlder && noAction;
-  }, [company.interacoes, company.proximaAcao, company.statusFunil]);
-  const isConversaPending = useMemo(() => {
-    const limit = Date.now() - 24 * 60 * 60 * 1000;
-    const last = company.interacoes[0];
-    const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
-    const noAction = !company.proximaAcao;
-    return company.statusFunil === "EM_CONVERSA" && lastIsOlder && !company.dataReuniao && noAction;
-  }, [company.interacoes, company.proximaAcao, company.statusFunil, company.dataReuniao]);
+  const followup1Pending = useMemo(() => isFollowup1Pending(company), [company]);
+  const conversaPending = useMemo(() => isConversaPending(company), [company]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -172,12 +160,12 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
         />
       </div>
 
-      {isFollowup1Pending ? (
+      {followup1Pending ? (
         <div className="rounded-lg border border-amber-700/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-100">
           Follow-up 1 recomendado (24h sem resposta). Use o botão abaixo para copiar o texto.
         </div>
       ) : null}
-      {isConversaPending ? (
+      {conversaPending ? (
         <div className="rounded-lg border border-amber-700/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-100">
           Follow-up de conversa recomendado (24h sem avanço).
         </div>
@@ -245,7 +233,7 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
         </div>
       ) : null}
 
-      {isConversaPending && followupModelTemplate ? (
+      {conversaPending && followupModelTemplate ? (
         <FollowupConversaAction empresaId={company.id} template={followupModelTemplate.texto} />
       ) : null}
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, tipoSiteLabels } from "@/lib/dictionaries";
 import { formatDate, formatRelative } from "@/lib/utils";
+import { isFollowup1Pending } from "@/lib/followup-rules";
 import { LeadStatusBadge } from "../leads/lead-status-badge";
 import { DataTable } from "../table/data-table";
 
@@ -149,13 +150,4 @@ function nextAction(company: EmpresaWithInteracoes) {
   if (!entries.length) return "Sem ação definida";
   const nearest = entries.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
   return `${nearest.label} • ${formatRelative(nearest.date)}`;
-}
-
-function isFollowup1Pending(company: EmpresaWithInteracoes) {
-  const limit = Date.now() - 24 * 60 * 60 * 1000;
-  const lastInteraction = company.interacoes[0];
-  const lastIsM1 = lastInteraction?.tipo === "MENSAGEM_1";
-  const lastIsOlder = lastInteraction ? new Date(lastInteraction.data).getTime() <= limit : false;
-  const noAction = !company.proximaAcao;
-  return company.statusFunil === "MENSAGEM_1_ENVIADA" && lastIsM1 && lastIsOlder && noAction;
 }

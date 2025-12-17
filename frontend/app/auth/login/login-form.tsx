@@ -37,7 +37,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground px-4">
       <div className="w-full max-w-md rounded-xl border border-stroke/60 bg-background-elevated p-6 shadow-xl">
         <div className="mb-6 space-y-1 text-center">
-          <p className="text-sm font-semibold text-primary">MaximosConect</p>
+          <p className="text-sm font-semibold text-primary">Maxconect Crm</p>
           <h1 className="text-xl font-semibold">Acessar painel</h1>
           <p className="text-xs text-muted">Informe suas credenciais para prosseguir.</p>
         </div>

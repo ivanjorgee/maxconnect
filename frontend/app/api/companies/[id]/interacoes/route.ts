@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createInteracao } from "@/lib/data";
 import { requireApiAuth, unauthorizedResponse } from "@/lib/auth";
+import { companyIdSchema, formatZodError, interacaoSchema } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 type Params = { params: { id: string } };
 
@@ -9,22 +11,34 @@ export async function POST(request: Request, { params }: Params) {
     const auth = await requireApiAuth(request);
     if (!auth) return unauthorizedResponse();
 
-    const payload = await request.json();
-    if (!payload.tipo || !payload.canal || !payload.data || !payload.descricao) {
-      return NextResponse.json({ error: "Tipo, canal, data e descrição são obrigatórios" }, { status: 400 });
+    const idParsed = companyIdSchema.safeParse(params.id);
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: "ID invalido.", details: formatZodError(idParsed.error) },
+        { status: 400 },
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const parsed = interacaoSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Dados invalidos.", details: formatZodError(parsed.error) },
+        { status: 400 },
+      );
     }
 
     const interacao = await createInteracao({
-      empresaId: params.id,
-      tipo: payload.tipo,
-      canal: payload.canal,
-      data: payload.data,
-      descricao: payload.descricao,
+      empresaId: idParsed.data,
+      tipo: parsed.data.tipo,
+      canal: parsed.data.canal,
+      data: parsed.data.data,
+      descricao: parsed.data.descricao,
     });
 
     return NextResponse.json(interacao, { status: 201 });
   } catch (error) {
-    console.error("Error creating interação", error);
+    logger.error("Error creating interacao", { error });
     return NextResponse.json({ error: "Erro ao criar interação" }, { status: 500 });
   }
 }

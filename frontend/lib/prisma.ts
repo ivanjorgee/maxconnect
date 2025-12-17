@@ -1,8 +1,9 @@
 import { PrismaClient } from "@prisma/client";
+import { env } from "./env";
 
-if (!process.env.DATABASE_URL) {
+if (!env.DATABASE_URL) {
   throw new Error(
-    'DATABASE_URL não definida. Crie um arquivo ".env.local" na pasta frontend com DATABASE_URL do Postgres (veja .env.example) e reinicie o servidor.',
+    'DATABASE_URL nao definida. Crie um arquivo ".env.local" na pasta frontend com DATABASE_URL do Postgres (veja .env.example) e reinicie o servidor.',
   );
 }
 

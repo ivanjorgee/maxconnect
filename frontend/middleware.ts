@@ -1,11 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { env, isDev } from "./lib/env";
+import { logger } from "./lib/logger";
 
 const AUTH_COOKIE = "mc_auth_token";
-const PUBLIC_PATHS = ["/auth/login", "/api/auth/login", "/api/auth/logout", "/favicon.ico"];
-const devBypassEnabled = (process.env.AUTH_DEV_BYPASS || "false").toLowerCase() === "true";
+const PUBLIC_PATHS = [
+  "/auth/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/cron/followups",
+  "/api/health",
+  "/favicon.ico",
+];
+const devBypassEnabled = env.AUTH_DEV_BYPASS === "true" && isDev;
 
-const secretValue = process.env.AUTH_JWT_SECRET || process.env.JWT_SECRET || "";
+const secretValue = env.AUTH_JWT_SECRET || process.env.JWT_SECRET || "";
 const secretKey = secretValue ? new TextEncoder().encode(secretValue) : null;
 
 async function isValidToken(token: string) {
@@ -40,7 +49,7 @@ export async function middleware(req: NextRequest) {
   if (isPublicPath(pathname)) return NextResponse.next();
 
   if (!secretKey) {
-    console.error("AUTH_JWT_SECRET não configurado; bloqueando acesso.");
+    logger.error("AUTH_JWT_SECRET nao configurado; bloqueando acesso.");
     return handleUnauthorized(req);
   }
 

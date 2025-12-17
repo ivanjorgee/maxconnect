@@ -1,9 +1,26 @@
 import { Canal, ModeloAbertura, OrigemLead, Prisma, Prioridade, StatusFunil, TicketMedioEstimado, TipoInteracao, TipoSite } from "@prisma/client";
 import { prisma } from "./prisma";
 
+const interacoesSelect = {
+  id: true,
+  tipo: true,
+  canal: true,
+  data: true,
+  descricao: true,
+  createdAt: true,
+};
+
 export type EmpresaWithInteracoes = Prisma.EmpresaGetPayload<{
-  include: { interacoes: true; owner: true };
+  include: { interacoes: { select: typeof interacoesSelect } };
 }>;
+
+export type PaginatedResult<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
 
 export type DashboardData = {
   totalEmpresas: number;
@@ -38,7 +55,7 @@ export type DashboardData = {
   }>;
 };
 
-export async function getEmpresas(filters?: {
+type EmpresaFilters = {
   cidade?: string | null;
   canal?: Canal | null;
   status?: StatusFunil | null;
@@ -49,11 +66,11 @@ export async function getEmpresas(filters?: {
   action?: "none" | "today" | "overdue" | null;
   followup1Pending?: boolean;
   followupConversaPending?: boolean;
-}): Promise<EmpresaWithInteracoes[]> {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+};
 
+const DEFAULT_PAGE_SIZE = 50;
+
+async function resolvePendingIds(filters?: EmpresaFilters): Promise<string[] | null> {
   let pendingIds: string[] | null = null;
   if (filters?.followup1Pending) {
     const pendentes = await getEmpresasPendentesFollowUp1();
@@ -65,45 +82,99 @@ export async function getEmpresas(filters?: {
     pendingIds = pendentes.map((e) => e.id);
     if (!pendingIds.length) return [];
   }
+  return pendingIds;
+}
+
+function buildEmpresaWhere(filters: EmpresaFilters | undefined, pendingIds: string[] | null): Prisma.EmpresaWhereInput {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+  return {
+    cidade: filters?.cidade || undefined,
+    origemLead: filters?.origemLead || undefined,
+    tipoSite: filters?.tipoSite || undefined,
+    canalPrincipal: filters?.canal || undefined,
+    statusFunil: filters?.status || undefined,
+    temSite: typeof filters?.temSite === "boolean" ? filters.temSite : undefined,
+    proximaAcao: filters?.action === "none" ? null : undefined,
+    proximaAcaoData:
+      filters?.action === "today"
+        ? { gte: start, lte: end }
+        : filters?.action === "overdue"
+          ? { lt: start }
+          : undefined,
+    nome: filters?.busca
+      ? {
+          contains: filters.busca,
+          mode: "insensitive",
+        }
+      : undefined,
+    id: pendingIds ? { in: pendingIds } : undefined,
+  };
+}
+
+export async function getEmpresas(filters?: EmpresaFilters): Promise<EmpresaWithInteracoes[]> {
+  const pendingIds = await resolvePendingIds(filters);
+  if (pendingIds && pendingIds.length === 0) return [];
 
   return prisma.empresa.findMany({
-    where: {
-      cidade: filters?.cidade || undefined,
-      origemLead: filters?.origemLead || undefined,
-      tipoSite: filters?.tipoSite || undefined,
-      canalPrincipal: filters?.canal || undefined,
-      statusFunil: filters?.status || undefined,
-      temSite: typeof filters?.temSite === "boolean" ? filters.temSite : undefined,
-      proximaAcao: filters?.action === "none" ? null : undefined,
-      proximaAcaoData:
-        filters?.action === "today"
-          ? { gte: start, lte: end }
-          : filters?.action === "overdue"
-            ? { lt: start }
-            : undefined,
-      nome: filters?.busca
-        ? {
-            contains: filters.busca,
-            mode: "insensitive",
-          }
-        : undefined,
-      id: pendingIds ? { in: pendingIds } : undefined,
-    },
+    where: buildEmpresaWhere(filters, pendingIds),
     include: {
       interacoes: {
         orderBy: { data: "desc" },
-        take: 5, // evitamos carregar histórico inteiro na lista para manter rápido
+        take: 5,
+        select: interacoesSelect,
       },
-      owner: true,
     },
     orderBy: { updatedAt: "desc" },
   });
 }
 
+export async function getEmpresasPage(
+  filters?: EmpresaFilters,
+  pagination?: { page?: number; pageSize?: number },
+): Promise<PaginatedResult<EmpresaWithInteracoes>> {
+  const pendingIds = await resolvePendingIds(filters);
+  if (pendingIds && pendingIds.length === 0) {
+    return { items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, pageCount: 0 };
+  }
+
+  const page = pagination?.page && pagination.page > 0 ? pagination.page : 1;
+  const pageSize = pagination?.pageSize && pagination.pageSize > 0 ? pagination.pageSize : DEFAULT_PAGE_SIZE;
+  const skip = (page - 1) * pageSize;
+  const where = buildEmpresaWhere(filters, pendingIds);
+
+  const [items, total] = await prisma.$transaction([
+    prisma.empresa.findMany({
+      where,
+      include: {
+        interacoes: {
+          orderBy: { data: "desc" },
+          take: 5,
+          select: interacoesSelect,
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    prisma.empresa.count({ where }),
+  ]);
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    pageCount: Math.ceil(total / pageSize),
+  };
+}
+
 export async function getEmpresaById(id: string): Promise<EmpresaWithInteracoes | null> {
   return prisma.empresa.findUnique({
     where: { id },
-    include: { interacoes: { orderBy: { data: "desc" } }, owner: true },
+    include: { interacoes: { orderBy: { data: "desc" }, select: interacoesSelect } },
   });
 }
 
@@ -522,7 +593,7 @@ export async function getEmpresasPendentesFollowUp1() {
         },
       },
     },
-    include: { interacoes: { orderBy: { data: "desc" }, take: 3 }, owner: true },
+    include: { interacoes: { orderBy: { data: "desc" }, take: 3, select: interacoesSelect } },
   });
 }
 
@@ -554,16 +625,20 @@ export async function autoScheduleFollowup1After24h() {
   const empresas = await prisma.empresa.findMany({
     where: {
       statusFunil: StatusFunil.MENSAGEM_1_ENVIADA,
-      OR: [{ proximaAcao: null }, { proximaAcao: "" }],
-      OR: [
-        { dataMensagem1: { lte: limit } },
+      AND: [
+        { OR: [{ proximaAcao: null }, { proximaAcao: "" }] },
         {
-          interacoes: {
-            some: {
-              tipo: TipoInteracao.MENSAGEM_1,
-              data: { lte: limit },
+          OR: [
+            { dataMensagem1: { lte: limit } },
+            {
+              interacoes: {
+                some: {
+                  tipo: TipoInteracao.MENSAGEM_1,
+                  data: { lte: limit },
+                },
+              },
             },
-          },
+          ],
         },
       ],
     },
@@ -608,7 +683,7 @@ export async function getEmpresasPendentesFollowUpConversa() {
         },
       },
     },
-    include: { interacoes: { orderBy: { data: "desc" }, take: 3 }, owner: true },
+    include: { interacoes: { orderBy: { data: "desc" }, take: 3, select: interacoesSelect } },
   });
 }
 

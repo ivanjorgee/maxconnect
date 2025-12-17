@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: maxconect-crm
+    env: node
+    plan: starter
+    rootDir: frontend
+    buildCommand: npm ci --include=dev && npm run prisma:generate && npm run build
+    startCommand: npm run prisma:deploy && npm run start -- -H 0.0.0.0 -p $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_NAME
+        sync: false
+      - key: AUTH_DEFAULT_EMAIL
+        sync: false
+      - key: AUTH_DEFAULT_USER
+        sync: false
+      - key: AUTH_PASSWORD
+        sync: false
+      - key: AUTH_PASSWORD_HASH
+        sync: false
+      - key: AUTH_ALLOWED_EMAILS
+        sync: false
+      - key: AUTH_JWT_SECRET
+        sync: false
+      - key: AUTH_DEV_BYPASS
+        value: "false"
+      - key: CRON_SECRET
+        sync: false

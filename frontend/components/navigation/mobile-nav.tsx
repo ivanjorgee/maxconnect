@@ -24,7 +24,7 @@ export function MobileNav() {
             <span className="text-sm font-semibold">MC</span>
           </div>
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-foreground">MaximosConnect</p>
+            <p className="text-sm font-semibold text-foreground">Maxconect Crm</p>
             <p className="text-[11px] text-muted">CRM B2B</p>
           </div>
         </div>

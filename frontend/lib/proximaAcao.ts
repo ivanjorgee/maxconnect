@@ -207,7 +207,13 @@ export async function registrarInteracaoMacro(params: {
     const updated = await tx.empresa.update({
       where: { id: empresa.id },
       data: updateData,
-      include: { interacoes: { orderBy: { data: "desc" }, take: 5 }, owner: true },
+      include: {
+        interacoes: {
+          orderBy: { data: "desc" },
+          take: 5,
+          select: { id: true, tipo: true, canal: true, data: true, descricao: true, createdAt: true },
+        },
+      },
     });
 
     return updated;
@@ -237,7 +243,13 @@ export async function registerFollowupConversa(empresaId: string) {
         proximaAcaoData: new Date(agora.getTime() + 2 * 24 * 60 * 60 * 1000),
         updatedAt: agora,
       },
-      include: { interacoes: { orderBy: { data: "desc" }, take: 5 }, owner: true },
+      include: {
+        interacoes: {
+          orderBy: { data: "desc" },
+          take: 5,
+          select: { id: true, tipo: true, canal: true, data: true, descricao: true, createdAt: true },
+        },
+      },
     });
     return updated;
   });

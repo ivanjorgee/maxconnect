@@ -121,6 +121,13 @@ model Empresa {
 
   @@index([statusFunil])
   @@index([proximaAcaoData])
+  @@index([cidade])
+  @@index([canalPrincipal])
+  @@index([origemLead])
+  @@index([tipoSite])
+  @@index([temSite])
+  @@index([proximaAcao])
+  @@index([statusFunil, proximaAcaoData])
 }
 
 model Interacao {
@@ -132,4 +139,6 @@ model Interacao {
   data      DateTime
   descricao String
   createdAt DateTime   @default(now())
+
+  @@index([empresaId, data])
 }

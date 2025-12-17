@@ -1,7 +1,8 @@
-import { Canal, OrigemLead, StatusFunil, TipoSite } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { createEmpresa, getEmpresas } from "@/lib/data";
+import { createEmpresa, getEmpresasPage } from "@/lib/data";
 import { requireApiAuth, unauthorizedResponse } from "@/lib/auth";
+import { companyCreateSchema, companyListQuerySchema, formatZodError } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   try {
@@ -9,29 +10,33 @@ export async function GET(request: Request) {
     if (!auth) return unauthorizedResponse();
 
     const url = new URL(request.url);
-    const cidade = url.searchParams.get("cidade");
-    const canal = url.searchParams.get("canal") as Canal | null;
-    const status = url.searchParams.get("status");
-    const origemLead = url.searchParams.get("origemLead") as OrigemLead | null;
-    const tipoSite = url.searchParams.get("tipoSite") as TipoSite | null;
-    const busca = url.searchParams.get("q");
-    const temSiteParam = url.searchParams.get("temSite");
-    const temSite = temSiteParam === null ? null : temSiteParam === "true";
-    const action = url.searchParams.get("action") as "none" | "today" | "overdue" | null;
+    const rawParams = Object.fromEntries(url.searchParams.entries());
+    const parsed = companyListQuerySchema.safeParse(rawParams);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Parametros invalidos.", details: formatZodError(parsed.error) },
+        { status: 400 },
+      );
+    }
 
-    const companies = await getEmpresas({
-      cidade: cidade || null,
-      canal,
-      status: (status as StatusFunil | null) ?? null,
-      origemLead,
-      tipoSite,
-      temSite,
-      busca: busca || null,
-      action: action ?? null,
-    });
+    const { cidade, canal, status, origemLead, tipoSite, q, temSite, action, followup1Pending, page, pageSize } = parsed.data;
+    const companies = await getEmpresasPage(
+      {
+        cidade: cidade || null,
+        canal: canal ?? null,
+        status: status ?? null,
+        origemLead: origemLead ?? null,
+        tipoSite: tipoSite ?? null,
+        temSite: typeof temSite === "boolean" ? temSite : null,
+        busca: q || null,
+        action: action ?? null,
+        followup1Pending,
+      },
+      { page, pageSize },
+    );
     return NextResponse.json(companies);
   } catch (error) {
-    console.error("Error fetching companies", error);
+    logger.error("Error fetching companies", { error });
     return NextResponse.json({ error: "Erro ao buscar empresas" }, { status: 500 });
   }
 }
@@ -41,13 +46,15 @@ export async function POST(request: Request) {
     const auth = await requireApiAuth(request);
     if (!auth) return unauthorizedResponse();
 
-    const payload = await request.json();
-    if (!payload.nome || !payload.endereco || !payload.cidade || !payload.linkGoogleMaps) {
-      return NextResponse.json({ error: "Nome, endereço, cidade e link do Maps são obrigatórios" }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = companyCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Dados invalidos.", details: formatZodError(parsed.error) },
+        { status: 400 },
+      );
     }
-    if (!payload.canalPrincipal || !payload.origemLead) {
-      return NextResponse.json({ error: "Canal principal e origem são obrigatórios" }, { status: 400 });
-    }
+    const payload = parsed.data;
 
     const company = await createEmpresa({
       nome: payload.nome,
@@ -57,27 +64,26 @@ export async function POST(request: Request) {
       whatsapp: payload.whatsapp,
       website: payload.website,
       instagram: payload.instagram,
-      avaliacaoGoogle: payload.avaliacaoGoogle ? Number(payload.avaliacaoGoogle) : undefined,
-      qtdAvaliacoes: payload.qtdAvaliacoes ? Number(payload.qtdAvaliacoes) : undefined,
+      avaliacaoGoogle: payload.avaliacaoGoogle ?? undefined,
+      qtdAvaliacoes: payload.qtdAvaliacoes ?? undefined,
       linkGoogleMaps: payload.linkGoogleMaps,
       temSite: !!payload.temSite,
-      tipoSite: payload.tipoSite as TipoSite,
-      origemLead: payload.origemLead as OrigemLead,
-      canalPrincipal: payload.canalPrincipal as Canal,
+      tipoSite: payload.tipoSite,
+      origemLead: payload.origemLead,
+      canalPrincipal: payload.canalPrincipal,
       especialidadePrincipal: payload.especialidadePrincipal,
       ticketMedioEstimado: payload.ticketMedioEstimado,
       prioridade: payload.prioridade,
       modeloAbertura: payload.modeloAbertura,
-      tags: payload.tags,
+      tags: payload.tags ?? [],
       observacoes: payload.observacoes,
-      statusFunil: StatusFunil.NOVO,
       proximaAcao: "FAZER_PRIMEIRO_CONTATO",
       proximaAcaoData: new Date(),
     });
 
     return NextResponse.json(company, { status: 201 });
   } catch (error) {
-    console.error("Error creating company", error);
+    logger.error("Error creating company", { error });
     return NextResponse.json({ error: "Erro ao criar empresa" }, { status: 500 });
   }
 }

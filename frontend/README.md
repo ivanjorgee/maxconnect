@@ -1,23 +1,29 @@
-# MaximosConect CRM (Next.js 14)
+# Maxconect Crm (Next.js 14)
 
 Stack: Next.js 14 (App Router) + TypeScript + Tailwind CSS + Prisma/PostgreSQL.
 
 ## Comandos
 - `npm install` — instala dependências
-- `npx prisma migrate dev` — aplica migrações no Postgres definido em `DATABASE_URL`
+- `npm run prisma:migrate` — aplica migrações no Postgres definido em `DATABASE_URL` (dev)
+- `npm run prisma:deploy` — aplica migrações em produção (Render/CI)
 - `npm run dev` — sobe o app em modo dev
+- `npm run dev:clean` — limpa cache do Next e sobe o dev server
 - Opcional: `npm run prisma:generate` para gerar o client do Prisma
 - Opcional: `node prisma/import-csv.js ./caminho/clinicas.csv` (ou `CSV_PATH=./clinicas.csv node prisma/import-csv.js`) para importar um CSV simples
 
 ## Variáveis de ambiente
 Copie `.env.example` para `.env.local` e ajuste:
 ```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maximosconect"
-NEXT_PUBLIC_APP_NAME="MaximosConect"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/maxconect"
+NEXT_PUBLIC_APP_NAME="Maxconect Crm"
 AUTH_ALLOWED_EMAILS="seu@email.com" # lista separada por vírgula
+AUTH_DEFAULT_EMAIL="admin@maxconect.local"
+AUTH_DEFAULT_USER="Administrador"
 AUTH_PASSWORD="senha-em-texto-ou-deixe-vazia-se-usar-hash"
 AUTH_PASSWORD_HASH="$2a$10$..."      # opcional, prioridade sobre AUTH_PASSWORD
 AUTH_JWT_SECRET="chave-longae-unica"
+AUTH_DEV_BYPASS="false"
+CRON_SECRET="chave-para-o-cron"
 ```
 > Lembre de reiniciar `npm run dev` depois de criar/alterar o `.env.local`.
 
