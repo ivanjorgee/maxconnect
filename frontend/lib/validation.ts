@@ -19,6 +19,11 @@ const optionalString = z.preprocess(
   z.string(),
 ).optional();
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().min(1),
+).optional();
+
 const optionalNullableString = z.preprocess(
   (value) => {
     if (value === null || value === undefined) return value;
@@ -126,14 +131,14 @@ export const companyCreateSchema = z.object({
 });
 
 export const companyUpdateSchema = z.object({
-  nome: optionalNullableString,
-  endereco: optionalNullableString,
-  cidade: optionalNullableString,
+  nome: optionalNonEmptyString,
+  endereco: optionalNonEmptyString,
+  cidade: optionalNonEmptyString,
   telefonePrincipal: optionalNullableString,
   whatsapp: optionalNullableString,
   website: optionalNullableString,
   instagram: optionalNullableString,
-  linkGoogleMaps: optionalNullableString,
+  linkGoogleMaps: optionalString,
   origemLead: z.nativeEnum(OrigemLead).optional(),
   canalPrincipal: z.nativeEnum(Canal).optional(),
   especialidadePrincipal: optionalNullableString,
@@ -141,7 +146,7 @@ export const companyUpdateSchema = z.object({
   modeloAbertura: z.nativeEnum(ModeloAbertura).nullable().optional(),
   prioridade: z.nativeEnum(Prioridade).optional(),
   temSite: optionalBoolean,
-  tipoSite: z.nativeEnum(TipoSite).nullable().optional(),
+  tipoSite: z.nativeEnum(TipoSite).optional(),
   dataFollowup1: optionalDate,
   dataFollowup2: optionalDate,
   dataReuniao: optionalDate,
