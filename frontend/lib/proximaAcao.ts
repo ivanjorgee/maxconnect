@@ -91,7 +91,7 @@ const macroConfig: Record<
     tipoInteracao: TipoInteracao;
     novoStatus: StatusFunil;
     descricao: (input: { modeloAbertura?: string | null }) => string;
-    proximaAcao?: ProximaAcao;
+    proximaAcao?: ProximaAcao | null;
     proximaAcaoOffsetDays?: number;
     proximaAcaoOffsetHours?: number;
     proximaAcaoData?: Date | null;
@@ -199,8 +199,9 @@ export async function registrarInteracaoMacro(params: {
 
     const updateData: Prisma.EmpresaUpdateInput = {
       statusFunil: cfg.novoStatus,
-      proximaAcao: cfg.proximaAcao ?? empresa.proximaAcao,
-      proximaAcaoData: proximaData ?? empresa.proximaAcaoData ?? null,
+      proximaAcao: cfg.proximaAcao !== undefined ? cfg.proximaAcao : empresa.proximaAcao,
+      proximaAcaoData:
+        cfg.proximaAcaoData !== undefined ? cfg.proximaAcaoData : proximaData ?? empresa.proximaAcaoData ?? null,
       dataMensagem1: cfg.novoStatus === StatusFunil.MENSAGEM_1_ENVIADA ? agora : empresa.dataMensagem1,
       dataFollowup1: params.macro === "FOLLOWUP_1" ? agora : empresa.dataFollowup1,
       dataFollowup2: params.macro === "FOLLOWUP_2" ? agora : empresa.dataFollowup2,
