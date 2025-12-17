@@ -52,7 +52,7 @@ export function isPast(value?: Date | string | null): boolean {
   return date.getTime() < Date.now();
 }
 
-export function isWithinDays(value?: Date | string | null, days: number): boolean {
+export function isWithinDays(value: Date | string | null | undefined, days: number): boolean {
   if (!value) return false;
   const date = typeof value === "string" ? new Date(value) : value;
   const now = new Date();
