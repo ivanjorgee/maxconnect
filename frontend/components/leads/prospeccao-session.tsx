@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Link as LinkIcon, MessageCircle, X
 import { EmpresaWithInteracoes } from "@/lib/data";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
+import { MacroTipo } from "@/lib/proximaAcao";
 import { Button } from "../ui/button";
 
 type Props = {
