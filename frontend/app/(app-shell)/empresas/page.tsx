@@ -15,6 +15,7 @@ export default async function CompaniesPage({
     origemLead?: OrigemLead;
     tipoSite?: TipoSite;
     temSite?: string;
+    contato?: string;
     q?: string;
     action?: string;
     followup1Pending?: string;
@@ -36,14 +37,15 @@ export default async function CompaniesPage({
 
   const companies = await getEmpresasPage(
     {
-    status: searchParams.status ?? null,
-    cidade: searchParams.cidade ?? null,
-    origemLead: searchParams.origemLead ?? null,
-    tipoSite: searchParams.tipoSite ?? null,
-    temSite,
-    busca: searchParams.q ?? null,
-    action: normalizedAction,
-    followup1Pending: searchParams.followup1Pending === "true",
+      status: searchParams.status ?? null,
+      cidade: searchParams.cidade ?? null,
+      origemLead: searchParams.origemLead ?? null,
+      tipoSite: searchParams.tipoSite ?? null,
+      temSite,
+      contato: searchParams.contato ?? null,
+      busca: searchParams.q ?? null,
+      action: normalizedAction,
+      followup1Pending: searchParams.followup1Pending === "true",
     },
     { page, pageSize },
   );
@@ -75,6 +77,7 @@ export default async function CompaniesPage({
               q: searchParams.q,
               status: searchParams.status ?? "",
               cidade: searchParams.cidade,
+              contato: searchParams.contato,
               origemLead: searchParams.origemLead ?? "",
               tipoSite: searchParams.tipoSite ?? "",
               temSite: searchParams.temSite,

@@ -11,6 +11,7 @@ type FiltersInitial = {
   q?: string;
   status?: StatusFunil | "";
   cidade?: string;
+  contato?: string;
   origemLead?: OrigemLead | "";
   tipoSite?: TipoSite | "";
   temSite?: string;

@@ -184,6 +184,7 @@ export const companyListQuerySchema = z.object({
   origemLead: z.nativeEnum(OrigemLead).optional(),
   tipoSite: z.nativeEnum(TipoSite).optional(),
   q: optionalString,
+  contato: optionalString,
   temSite: optionalBoolean,
   action: z.enum(["none", "today", "overdue"]).optional(),
   followup1Pending: optionalBoolean,

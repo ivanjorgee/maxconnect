@@ -63,6 +63,7 @@ type EmpresaFilters = {
   origemLead?: OrigemLead | null;
   tipoSite?: TipoSite | null;
   busca?: string | null;
+  contato?: string | null;
   action?: "none" | "today" | "overdue" | null;
   followup1Pending?: boolean;
   followupConversaPending?: boolean;
@@ -90,7 +91,7 @@ function buildEmpresaWhere(filters: EmpresaFilters | undefined, pendingIds: stri
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-  return {
+  const where: Prisma.EmpresaWhereInput = {
     cidade: filters?.cidade || undefined,
     origemLead: filters?.origemLead || undefined,
     tipoSite: filters?.tipoSite || undefined,
@@ -103,7 +104,7 @@ function buildEmpresaWhere(filters: EmpresaFilters | undefined, pendingIds: stri
         ? { gte: start, lte: end }
         : filters?.action === "overdue"
           ? { lt: start }
-          : undefined,
+      : undefined,
     nome: filters?.busca
       ? {
           contains: filters.busca,
@@ -112,6 +113,21 @@ function buildEmpresaWhere(filters: EmpresaFilters | undefined, pendingIds: stri
       : undefined,
     id: pendingIds ? { in: pendingIds } : undefined,
   };
+
+  if (filters?.contato) {
+    const contact = filters.contato.trim();
+    where.AND = [
+      ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+      {
+        OR: [
+          { telefonePrincipal: { contains: contact, mode: "insensitive" } },
+          { whatsapp: { contains: contact, mode: "insensitive" } },
+        ],
+      },
+    ];
+  }
+
+  return where;
 }
 
 export async function getEmpresas(filters?: EmpresaFilters): Promise<EmpresaWithInteracoes[]> {

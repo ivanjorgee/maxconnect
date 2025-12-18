@@ -11,6 +11,7 @@ type Props = {
     q?: string;
     status?: StatusFunil | "";
     cidade?: string;
+    contato?: string;
     origemLead?: OrigemLead | "";
     tipoSite?: TipoSite | "";
     temSite?: string;
@@ -25,6 +26,7 @@ export function CompaniesFilters({ initial, onApplied, onCleared }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState<StatusFunil | "">(initial.status ?? "");
   const [cidade, setCidade] = useState(initial.cidade ?? "");
+  const [contato, setContato] = useState(initial.contato ?? "");
   const [origemLead, setOrigemLead] = useState<OrigemLead | "">(initial.origemLead ?? "");
   const [tipoSite, setTipoSite] = useState<TipoSite | "">(initial.tipoSite ?? "");
   const [temSite, setTemSite] = useState(initial.temSite ?? "");
@@ -36,6 +38,7 @@ export function CompaniesFilters({ initial, onApplied, onCleared }: Props) {
     event.preventDefault();
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+    if (contato) params.set("contato", contato);
     if (status) params.set("status", status);
     if (cidade) params.set("cidade", cidade);
     if (origemLead) params.set("origemLead", origemLead);
@@ -68,6 +71,13 @@ export function CompaniesFilters({ initial, onApplied, onCleared }: Props) {
         placeholder="Buscar por nome"
         value={q}
         onChange={(e) => setQ(e.target.value)}
+        className="w-full"
+      />
+
+      <Input
+        placeholder="Buscar por telefone/WhatsApp"
+        value={contato}
+        onChange={(e) => setContato(e.target.value)}
         className="w-full"
       />
 
