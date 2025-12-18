@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { cidade, canal, status, origemLead, tipoSite, q, temSite, action, followup1Pending, page, pageSize } = parsed.data;
+    const { cidade, canal, status, origemLead, tipoSite, q, contato, temSite, action, followup1Pending, page, pageSize } = parsed.data;
     const companies = await getEmpresasPage(
       {
         cidade: cidade || null,
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
         origemLead: origemLead ?? null,
         tipoSite: tipoSite ?? null,
         temSite: typeof temSite === "boolean" ? temSite : null,
+        contato: contato || null,
         busca: q || null,
         action: action ?? null,
         followup1Pending,
