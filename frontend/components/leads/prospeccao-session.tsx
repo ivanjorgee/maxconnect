@@ -17,6 +17,13 @@ type Props = {
 };
 
 type CadenceTemplateView = { id: CadenceTemplateId; title: string; text: string };
+const BLOCKED_STATUSES: StatusFunil[] = [
+  StatusFunil.FECHADO,
+  StatusFunil.PERDIDO,
+  StatusFunil.SEM_RESPOSTA_30D,
+  StatusFunil.NURTURE,
+  StatusFunil.FOLLOWUP_LONGO,
+];
 
 export function ProspeccaoSession({ empresas, open = false, onClose }: Props) {
   const queue = useMemo(() => buildQueue(empresas), [empresas]);
@@ -214,15 +221,7 @@ function buildQueue(empresas: EmpresaWithInteracoes[]) {
     .filter((empresa) => {
       const blockedUntil = empresa.noResponseUntil ? toDate(empresa.noResponseUntil) : null;
       if (blockedUntil && blockedUntil > end) return false;
-      if (
-        [
-          StatusFunil.FECHADO,
-          StatusFunil.PERDIDO,
-          StatusFunil.SEM_RESPOSTA_30D,
-          StatusFunil.NURTURE,
-          StatusFunil.FOLLOWUP_LONGO,
-        ].includes(empresa.statusFunil)
-      ) {
+      if (BLOCKED_STATUSES.includes(empresa.statusFunil)) {
         return false;
       }
       const proxima = empresa.proximaAcaoData ? toDate(empresa.proximaAcaoData) : null;
