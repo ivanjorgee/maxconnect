@@ -1,19 +1,48 @@
 'use client';
 
-import { FormEvent, useState, useTransition } from "react";
-import { Canal, OrigemLead, StatusFunil, TipoSite, ModeloAbertura } from "@prisma/client";
+import { FormEvent, useEffect, useState, useTransition } from "react";
+import { Canal, OrigemLead, StatusFunil, TipoSite } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { modelosAbertura } from "@/lib/modelosAbertura";
+import { CADENCE_TEMPLATES } from "@/lib/cadence";
 
 const cidadeOptions = [
   { label: "Belém, PA", value: "Belém,PA" },
   { label: "Ananindeua, PA", value: "Ananindeua,PA" },
   { label: "Santarém, PA", value: "Santarém,PA" },
 ];
+
+const templateOptions = [
+  { label: CADENCE_TEMPLATES.M1A.title, value: "M1A" },
+  { label: CADENCE_TEMPLATES.M1B.title, value: "M1B" },
+] as const;
+
+type TemplateInicial = (typeof templateOptions)[number]["value"];
+const TEMPLATE_STORAGE_KEY = "mc_last_template";
+
+function getNextTemplate(last: string | null): TemplateInicial {
+  return last === "M1A" ? "M1B" : "M1A";
+}
+
+function readNextTemplate(): TemplateInicial {
+  if (typeof window === "undefined") return "M1A";
+  try {
+    const last = window.localStorage.getItem(TEMPLATE_STORAGE_KEY);
+    if (last === "M1A" || last === "M1B") {
+      return getNextTemplate(last);
+    }
+  } catch {}
+  return "M1A";
+}
+
+function persistLastTemplate(value: TemplateInicial) {
+  try {
+    window.localStorage.setItem(TEMPLATE_STORAGE_KEY, value);
+  } catch {}
+}
 
 type Props = {
   onSaved?: () => void;
@@ -36,8 +65,12 @@ export function CompanyForm({ onSaved }: Props) {
   const [especialidadePrincipal, setEspecialidadePrincipal] = useState("");
   const [tags, setTags] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [modeloAbertura, setModeloAbertura] = useState<ModeloAbertura | "">(modelosAbertura[0].codigo);
+  const [templateInicial, setTemplateInicial] = useState<TemplateInicial>("M1A");
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTemplateInicial(readNextTemplate());
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,7 +96,7 @@ export function CompanyForm({ onSaved }: Props) {
         statusFunil: StatusFunil.NOVO,
         ticketMedioEstimado: undefined,
         prioridade: undefined,
-        modeloAbertura: modeloAbertura || null,
+        currentTemplate: templateInicial,
         tags: tags
           .split(",")
           .map((tag) => tag.trim())
@@ -80,6 +113,7 @@ export function CompanyForm({ onSaved }: Props) {
     }
 
     setMessage("Empresa criada.");
+    persistLastTemplate(templateInicial);
     setNome("");
     setEndereco("");
     setCidade(cidadeOptions[0].value);
@@ -92,7 +126,7 @@ export function CompanyForm({ onSaved }: Props) {
     setOrigemLead(OrigemLead.GOOGLE_MAPS);
     setCanalPrincipal(Canal.WHATSAPP);
     setEspecialidadePrincipal("");
-    setModeloAbertura(modelosAbertura[0].codigo);
+    setTemplateInicial(getNextTemplate(templateInicial));
     setTags("");
     setObservacoes("");
     startTransition(() => router.refresh());
@@ -196,11 +230,11 @@ export function CompanyForm({ onSaved }: Props) {
               ))}
             </Select>
           </Field>
-          <Field label="Modelo de abertura">
-            <Select value={modeloAbertura} onChange={(e) => setModeloAbertura(e.target.value as ModeloAbertura)}>
-              {modelosAbertura.map((m) => (
-                <option key={m.codigo} value={m.codigo}>
-                  {m.codigo} — {m.titulo}
+          <Field label="Template inicial (A/B)">
+            <Select value={templateInicial} onChange={(e) => setTemplateInicial(e.target.value as TemplateInicial)}>
+              {templateOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </Select>

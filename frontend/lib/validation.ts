@@ -129,6 +129,7 @@ export const companyCreateSchema = z.object({
   ticketMedioEstimado: z.nativeEnum(TicketMedioEstimado).optional(),
   prioridade: z.nativeEnum(Prioridade).optional(),
   modeloAbertura: z.nativeEnum(ModeloAbertura).optional(),
+  currentTemplate: z.enum(["M1A", "M1B"]).optional(),
   tags: z.array(nonEmptyString.max(50)).optional(),
   observacoes: optionalString,
 });
@@ -147,6 +148,7 @@ export const companyUpdateSchema = z.object({
   especialidadePrincipal: optionalNullableString,
   statusFunil: z.nativeEnum(StatusFunil).optional(),
   modeloAbertura: z.nativeEnum(ModeloAbertura).nullable().optional(),
+  currentTemplate: z.enum(["M1A", "M1B"]).optional(),
   prioridade: z.nativeEnum(Prioridade).optional(),
   temSite: optionalBoolean,
   tipoSite: z.nativeEnum(TipoSite).optional(),

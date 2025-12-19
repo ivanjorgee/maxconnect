@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       ticketMedioEstimado: payload.ticketMedioEstimado,
       prioridade: payload.prioridade,
       modeloAbertura: payload.modeloAbertura,
+      currentTemplate: payload.currentTemplate,
       tags: payload.tags ?? [],
       observacoes: payload.observacoes,
       proximaAcao: "FAZER_PRIMEIRO_CONTATO",

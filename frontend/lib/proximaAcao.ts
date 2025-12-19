@@ -265,8 +265,10 @@ export async function registrarInteracaoMacro(params: {
     if (direction === InteracaoDirection.OUTBOUND && cadenceTemplateId) {
       updateData.attemptCount = { increment: 1 };
       updateData.lastOutboundAt = dataInteracao;
-      updateData.currentTemplate = cadenceTemplateId;
       updateData.currentCadenceStep = cadenceStep;
+      if (cadenceTemplateId === "M1A" || cadenceTemplateId === "M1B") {
+        updateData.currentTemplate = cadenceTemplateId;
+      }
     }
 
     if (params.macro === "RESPONDEU") {

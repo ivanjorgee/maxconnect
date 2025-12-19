@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { CADENCE_TEMPLATES, resolveM1TemplateId } from "@/lib/cadence";
 
 type Props = {
   company: EmpresaWithInteracoes;
@@ -19,6 +20,13 @@ const cidadeOptions = [
   { label: "Ananindeua, PA", value: "Ananindeua,PA" },
   { label: "Santarém, PA", value: "Santarém,PA" },
 ];
+
+const templateOptions = [
+  { label: CADENCE_TEMPLATES.M1A.title, value: "M1A" },
+  { label: CADENCE_TEMPLATES.M1B.title, value: "M1B" },
+] as const;
+
+type TemplateInicial = (typeof templateOptions)[number]["value"];
 
 export function CompanyEditModal({ company, onSaved }: Props) {
   const router = useRouter();
@@ -41,6 +49,9 @@ export function CompanyEditModal({ company, onSaved }: Props) {
   const [canalPrincipal, setCanalPrincipal] = useState<Canal>(company.canalPrincipal);
   const [tags, setTags] = useState(company.tags?.join(", ") ?? "");
   const [observacoes, setObservacoes] = useState(company.observacoes ?? "");
+  const [currentTemplate, setCurrentTemplate] = useState<TemplateInicial>(
+    resolveM1TemplateId(company.currentTemplate, company.id),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,6 +78,7 @@ export function CompanyEditModal({ company, onSaved }: Props) {
       especialidadePrincipal: especialidadePrincipal || null,
       tags: parsedTags,
       observacoes: observacoes || null,
+      currentTemplate,
     };
 
     const response = await fetch(`/api/companies/${company.id}`, {
@@ -173,6 +185,19 @@ export function CompanyEditModal({ company, onSaved }: Props) {
                     ))}
                   </Select>
                 </Field>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <Field label="Template inicial (A/B)">
+                  <Select value={currentTemplate} onChange={(e) => setCurrentTemplate(e.target.value as TemplateInicial)}>
+                    {templateOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <span />
               </div>
 
               <div className="grid gap-2 md:grid-cols-2">

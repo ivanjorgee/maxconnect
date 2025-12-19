@@ -255,6 +255,7 @@ export async function createEmpresa(data: {
   ticketMedioEstimado?: TicketMedioEstimado;
   prioridade?: Prioridade;
   modeloAbertura?: ModeloAbertura;
+  currentTemplate?: string;
   tags?: string[];
   observacoes?: string;
   proximaAcao?: string | null;
@@ -287,6 +288,7 @@ export async function updateEmpresa(
       | "especialidadePrincipal"
       | "statusFunil"
       | "modeloAbertura"
+      | "currentTemplate"
       | "prioridade"
       | "temSite"
       | "tipoSite"
