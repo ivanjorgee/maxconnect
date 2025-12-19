@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Empresa, ModeloAbertura, StatusFunil } from "@prisma/client";
 import { ArrowLeft, ArrowRight, CheckCircle2, Link as LinkIcon, MessageCircle, X } from "lucide-react";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
 import { MacroTipo } from "@/lib/proximaAcao";

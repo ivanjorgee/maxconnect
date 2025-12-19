@@ -1,0 +1,12 @@
+export const PROXIMA_ACAO_VALUES = [
+  "FAZER_PRIMEIRO_CONTATO",
+  "MENSAGEM_1",
+  "FOLLOW_UP_1",
+  "FOLLOW_UP_2",
+  "FOLLOW_UP_LONGO",
+  "REALIZAR_REUNIAO",
+  "ENVIAR_PROPOSTA",
+  "AGUARDANDO_RESPOSTA_CONVERSA",
+] as const;
+
+export type ProximaAcao = (typeof PROXIMA_ACAO_VALUES)[number];

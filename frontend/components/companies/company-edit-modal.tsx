@@ -3,7 +3,7 @@
 import { useState, useTransition, FormEvent } from "react";
 import { Canal, OrigemLead, TipoSite } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";

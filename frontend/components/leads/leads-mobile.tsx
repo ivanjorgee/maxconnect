@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { StatusFunil } from "@prisma/client";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, statusLabels } from "@/lib/dictionaries";
 import { formatRelative } from "@/lib/utils";
 import { LeadStatusBadge } from "./lead-status-badge";

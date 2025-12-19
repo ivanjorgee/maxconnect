@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { loginSchema, formatZodError } from "@/lib/validation";
 import { validatePassword } from "@/lib/password";
+import { createApiLogger, respondJson } from "@/lib/api-logger";
 
 const allowedEmails = env.AUTH_ALLOWED_EMAILS.split(",")
   .map((item) => item.trim().toLowerCase())
@@ -44,12 +45,14 @@ async function ensureBootstrapUser() {
 }
 
 export async function POST(request: Request) {
+  const apiLogger = createApiLogger(request, "/api/auth/login");
   try {
     const ip = getClientIp(request);
-    const rate = checkRateLimit(`login:${ip}`, { windowMs: 15 * 60 * 1000, max: 10 });
+    const rate = await checkRateLimit(`login:${ip}`, { windowMs: 15 * 60 * 1000, max: 10 });
     if (!rate.ok) {
-      logger.warn("Login rate limit atingido", { ip });
-      return NextResponse.json(
+      logger.warn("Login rate limit atingido", { ip, requestId: apiLogger.requestId });
+      return respondJson(
+        apiLogger,
         { error: "Muitas tentativas. Tente novamente em alguns minutos." },
         { status: 429, headers: rate.retryAfter ? { "Retry-After": rate.retryAfter.toString() } : undefined },
       );
@@ -60,7 +63,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return respondJson(
+        apiLogger,
         { error: "Dados invalidos.", details: formatZodError(parsed.error) },
         { status: 400 },
       );
@@ -69,26 +73,28 @@ export async function POST(request: Request) {
 
     const normalizedEmail = normalizeEmail(email);
     if (allowedEmails.length && !allowedEmails.includes(normalizedEmail)) {
-      return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
+      return respondJson(apiLogger, { error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.passwordHash) {
-      return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
+      return respondJson(apiLogger, { error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
-      return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 });
+      return respondJson(apiLogger, { error: "Credenciais inválidas." }, { status: 401 });
     }
 
     const token = await signAuthToken({ userId: user.id, email: user.email, name: user.name });
     const response = NextResponse.json({ user: { id: user.id, email: user.email, name: user.name } });
     setAuthCookie(response, token);
-    return response;
+    apiLogger.log(response.status);
+    return apiLogger.withRequestId(response);
   } catch (error) {
-    logger.error("Erro ao autenticar", { error });
-    return NextResponse.json(
+    logger.error("Erro ao autenticar", { error, requestId: apiLogger.requestId });
+    return respondJson(
+      apiLogger,
       {
         error:
           "Configuração de login incompleta ou banco desatualizado. Verifique AUTH_DEFAULT_EMAIL, AUTH_PASSWORD_HASH/ AUTH_PASSWORD, AUTH_JWT_SECRET e se as migrações foram aplicadas.",

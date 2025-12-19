@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { canalLabels } from "@/lib/dictionaries";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { MacroTipo } from "@/lib/proximaAcao";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { modelosFollowUp1 } from "@/lib/modelosFollowup";

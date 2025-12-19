@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { StatusFunil } from "@prisma/client";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { cn, formatRelative, isToday } from "@/lib/utils";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, statusLabels } from "@/lib/dictionaries";
 import { Button } from "../ui/button";
 

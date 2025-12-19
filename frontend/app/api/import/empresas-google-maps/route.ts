@@ -1,23 +1,29 @@
 import { Canal, ModeloAbertura, OrigemLead, StatusFunil } from "@prisma/client";
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiAuth, unauthorizedResponse } from "@/lib/auth";
 import { formatZodError, importEmpresasSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
+import { createApiLogger, respondJson } from "@/lib/api-logger";
 
 const modelos: ModeloAbertura[] = ["M1", "M2", "M3", "M4", "M5"];
 
 export async function POST(request: Request) {
+  const apiLogger = createApiLogger(request, "/api/import/empresas-google-maps");
   try {
     const auth = await requireApiAuth(request);
-    if (!auth) return unauthorizedResponse();
+    if (!auth) {
+      apiLogger.log(401);
+      return apiLogger.withRequestId(unauthorizedResponse());
+    }
 
     const body = await request.json().catch(() => null);
     const parsed = importEmpresasSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return respondJson(
+        apiLogger,
         { error: "Dados invalidos.", details: formatZodError(parsed.error) },
         { status: 400 },
+        { userId: auth.userId },
       );
     }
     const text = parsed.data.text;
@@ -45,7 +51,12 @@ export async function POST(request: Request) {
     }
 
     if (!registros.length) {
-      return NextResponse.json({ error: "Nenhuma empresa identificada nas linhas enviadas." }, { status: 400 });
+      return respondJson(
+        apiLogger,
+        { error: "Nenhuma empresa identificada nas linhas enviadas." },
+        { status: 400 },
+        { userId: auth.userId },
+      );
     }
 
     const created: string[] = [];
@@ -71,10 +82,12 @@ export async function POST(request: Request) {
       created.push(reg.nome);
     }
 
-    return NextResponse.json({ imported: created.length, empresas: created.slice(0, 50) });
+    return respondJson(apiLogger, { imported: created.length, empresas: created.slice(0, 50) }, undefined, {
+      userId: auth.userId,
+    });
   } catch (error) {
-    logger.error("Erro ao importar empresas do Google Maps", { error });
-    return NextResponse.json({ error: "Erro ao importar empresas" }, { status: 500 });
+    logger.error("Erro ao importar empresas do Google Maps", { error, requestId: apiLogger.requestId });
+    return respondJson(apiLogger, { error: "Erro ao importar empresas" }, { status: 500 });
   }
 }
 

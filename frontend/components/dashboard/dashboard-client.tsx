@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { Building2, CalendarClock, Flame, MessageCircle, Trophy, ArrowRight } from "lucide-react";
-import { getDashboardData } from "@/lib/data";
+import type { getDashboardData } from "@/lib/data";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RecentInteractions } from "@/components/interactions/recent-interactions";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-4 md:space-y-5">
       <KpiGrid data={data} />
-      <TrendChart data={data.trend7d} />
+      <TrendChart data={data.trend30d} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <NextActionsList items={data.prioritizedActions.slice(0, 8)} />
@@ -64,7 +64,7 @@ function KpiGrid({ data }: { data: DashboardData }) {
         hint="24h após Mensagem 1 sem resposta"
         icon={<MessageCircle size={18} />}
         tone={data.followUps1PendentesCount ? "warning" : "default"}
-        onClick={() => router.push("/empresas?followup1=true")}
+        onClick={() => router.push("/empresas?followup1Pending=true")}
       />
       <KpiCard
         title="Reuniões agendadas"

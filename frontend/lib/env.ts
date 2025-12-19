@@ -12,6 +12,8 @@ const envSchema = z.object({
   AUTH_JWT_SECRET: z.string().min(16).optional(),
   AUTH_DEV_BYPASS: z.enum(["true", "false"]).optional().default("false"),
   CRON_SECRET: z.string().min(16).optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -41,6 +43,8 @@ export const env = parsed.success
       AUTH_JWT_SECRET: process.env.AUTH_JWT_SECRET,
       AUTH_DEV_BYPASS: (process.env.AUTH_DEV_BYPASS as "true" | "false" | undefined) ?? "false",
       CRON_SECRET: process.env.CRON_SECRET,
+      UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+      UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     };
 
 export const isProd = env.NODE_ENV === "production";

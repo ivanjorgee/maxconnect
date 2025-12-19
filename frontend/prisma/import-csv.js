@@ -17,16 +17,69 @@ const {
 const prisma = new PrismaClient();
 
 function parseCsv(content) {
-  const [headerLine, ...rows] = content.trim().split(/\r?\n/);
-  const headers = headerLine.split(",").map((h) => h.trim().toLowerCase());
+  const rows = parseCsvRows(content);
+  if (!rows.length) return [];
+  const headers = rows
+    .shift()
+    .map((h) => h.replace(/^\uFEFF/, "").trim().toLowerCase());
   return rows
-    .map((row) => row.split(","))
+    .filter((row) => row.some((value) => value.trim().length))
     .map((cols) =>
       headers.reduce((acc, header, idx) => {
         acc[header] = cols[idx] ? cols[idx].trim() : "";
         return acc;
       }, {}),
     );
+}
+
+function parseCsvRows(content) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    const next = content[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        field += '"';
+        i += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(field);
+      field = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        i += 1;
+      }
+      row.push(field);
+      field = "";
+      if (row.length > 1 || (row.length === 1 && row[0] !== "")) {
+        rows.push(row);
+      }
+      row = [];
+      continue;
+    }
+
+    field += char;
+  }
+
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 async function main() {

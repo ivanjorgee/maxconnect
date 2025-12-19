@@ -70,6 +70,8 @@ type EmpresaFilters = {
 };
 
 const DEFAULT_PAGE_SIZE = 50;
+const DASHBOARD_CACHE_TTL_MS = 30 * 1000;
+let dashboardCache: { data: DashboardData; expiresAt: number } | null = null;
 
 async function resolvePendingIds(filters?: EmpresaFilters): Promise<string[] | null> {
   let pendingIds: string[] | null = null;
@@ -187,6 +189,19 @@ export async function getEmpresasPage(
   };
 }
 
+export async function getStatusCounts(): Promise<Record<StatusFunil, number>> {
+  const grouped = await prisma.empresa.groupBy({
+    by: ["statusFunil"],
+    _count: { _all: true },
+  });
+
+  return Object.values(StatusFunil).reduce((acc, status) => {
+    const entry = grouped.find((item) => item.statusFunil === status);
+    acc[status] = entry?._count._all ?? 0;
+    return acc;
+  }, {} as Record<StatusFunil, number>);
+}
+
 export async function getEmpresaById(id: string): Promise<EmpresaWithInteracoes | null> {
   return prisma.empresa.findUnique({
     where: { id },
@@ -278,38 +293,47 @@ export async function createInteracao(input: { empresaId: string; tipo: TipoInte
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  await ensureFollowup2Consistency();
+  const now = Date.now();
+  if (dashboardCache && dashboardCache.expiresAt > now) {
+    return dashboardCache.data;
+  }
+
   const { start, end } = getTodayRange();
-  const followUps1Pendentes = await getEmpresasPendentesFollowUp1();
-  const followUpsConversaPendentes = await getEmpresasPendentesFollowUpConversa();
-  const today = new Date();
+  const followUps1PendentesPromise = getEmpresasPendentesFollowUp1();
+  const followUpsConversaPendentesPromise = getEmpresasPendentesFollowUpConversa();
+
+  const responseStatuses = [
+    StatusFunil.RESPONDEU,
+    StatusFunil.EM_CONVERSA,
+    StatusFunil.REUNIAO_AGENDADA,
+    StatusFunil.REUNIAO_REALIZADA,
+    StatusFunil.PROPOSTA_ENVIADA,
+    StatusFunil.FECHADO,
+  ];
+
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const daysAgo = (days: number) => new Date(now - days * 24 * 60 * 60 * 1000);
 
   const [
+    totalEmpresas,
+    empresasEmProspeccao,
     mensagens1Hoje,
     respostasHoje,
     emConversaCount,
     reunioesAgendadasCount,
-    empresasEmProspeccao,
+    leadsQuentes,
+    tarefasHoje,
+    tarefasAtrasadas,
+    semProximaAcao,
+    porStatus,
+    fechados7,
+    fechados30,
+    fechadosMes,
   ] = await Promise.all([
-    prisma.interacao.count({
-      where: { tipo: TipoInteracao.MENSAGEM_1, data: { gte: start, lte: end } },
-    }),
-    // Não há tipo específico de "resposta" no enum; usamos heurística: empresas que avançaram além de MENSAGEM_1_ENVIADA e foram atualizadas hoje.
-    prisma.empresa.count({
-      where: {
-        statusFunil: {
-          in: [
-            StatusFunil.RESPONDEU,
-            StatusFunil.EM_CONVERSA,
-            StatusFunil.REUNIAO_AGENDADA,
-            StatusFunil.REUNIAO_REALIZADA,
-            StatusFunil.PROPOSTA_ENVIADA,
-            StatusFunil.FECHADO,
-          ],
-        },
-        updatedAt: { gte: start, lte: end },
-      },
-    }),
+    prisma.empresa.count(),
+    prisma.empresa.count({ where: { statusFunil: { notIn: [StatusFunil.FECHADO, StatusFunil.PERDIDO] } } }),
+    prisma.interacao.count({ where: { tipo: TipoInteracao.MENSAGEM_1, data: { gte: start, lte: end } } }),
+    prisma.empresa.count({ where: { statusFunil: { in: responseStatuses }, updatedAt: { gte: start, lte: end } } }),
     prisma.empresa.count({ where: { statusFunil: StatusFunil.EM_CONVERSA } }),
     prisma.empresa.count({
       where: {
@@ -317,146 +341,63 @@ export async function getDashboardData(): Promise<DashboardData> {
         OR: [{ dataReuniao: null }, { dataReuniao: { gte: start } }],
       },
     }),
-    prisma.empresa.count({ where: { statusFunil: { notIn: [StatusFunil.FECHADO, StatusFunil.PERDIDO] } } }),
+    prisma.empresa.count({ where: { statusFunil: { in: [StatusFunil.EM_CONVERSA, StatusFunil.REUNIAO_AGENDADA] } } }),
+    prisma.empresa.count({ where: { proximaAcaoData: { gte: start, lte: end } } }),
+    prisma.empresa.count({ where: { proximaAcaoData: { lt: start } } }),
+    prisma.empresa.count({
+      where: {
+        proximaAcaoData: null,
+        OR: [{ proximaAcao: null }, { proximaAcao: "" }],
+      },
+    }),
+    getStatusCounts(),
+    prisma.empresa.count({
+      where: {
+        statusFunil: StatusFunil.FECHADO,
+        OR: [
+          { dataFechamento: { gte: daysAgo(7) } },
+          { dataFechamento: null, updatedAt: { gte: daysAgo(7) } },
+        ],
+      },
+    }),
+    prisma.empresa.count({
+      where: {
+        statusFunil: StatusFunil.FECHADO,
+        OR: [
+          { dataFechamento: { gte: daysAgo(30) } },
+          { dataFechamento: null, updatedAt: { gte: daysAgo(30) } },
+        ],
+      },
+    }),
+    prisma.empresa.count({
+      where: {
+        statusFunil: StatusFunil.FECHADO,
+        OR: [
+          { dataFechamento: { gte: startOfMonth } },
+          { dataFechamento: null, updatedAt: { gte: startOfMonth } },
+        ],
+      },
+    }),
   ]);
 
+  const [followUps1Pendentes, followUpsConversaPendentes, proximasDatas, trend30d, proximasInteracoes, interacoesRecentes, reunioesHoje] =
+    await Promise.all([
+      followUps1PendentesPromise,
+      followUpsConversaPendentesPromise,
+      getProximasDatas(),
+      getTrendData(30, responseStatuses),
+      prisma.interacao.findMany({ include: { empresa: true }, orderBy: { data: "asc" }, take: 5 }),
+      prisma.interacao.findMany({ include: { empresa: true }, orderBy: { createdAt: "desc" }, take: 8 }),
+      prisma.empresa.findMany({
+        where: { dataReuniao: { gte: start, lte: end } },
+        select: { id: true, nome: true, cidade: true, dataReuniao: true },
+      }),
+    ]);
+
   const taxaRespostaHoje = mensagens1Hoje ? (respostasHoje / mensagens1Hoje) * 100 : 0;
-
-  // carregamos apenas campos usados no dashboard para reduzir payload
-  const empresas = await prisma.empresa.findMany({
-    select: {
-      id: true,
-      nome: true,
-      cidade: true,
-      statusFunil: true,
-      dataFollowup1: true,
-      dataFollowup2: true,
-      dataReuniao: true,
-      dataFechamento: true,
-      proximaAcao: true,
-      proximaAcaoData: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  const porStatus = Object.values(StatusFunil).reduce((acc, status) => {
-    acc[status] = empresas.filter((empresa) => empresa.statusFunil === status).length;
-    return acc;
-  }, {} as Record<StatusFunil, number>);
-
-  const now = Date.now();
-  const daysAgo = (days: number) => new Date(now - days * 24 * 60 * 60 * 1000);
-
-  const fechados7 = empresas.filter((empresa) => {
-    if (empresa.statusFunil !== StatusFunil.FECHADO) return false;
-    const reference = empresa.dataFechamento ?? empresa.updatedAt;
-    return reference >= daysAgo(7);
-  }).length;
-
-  const fechados30 = empresas.filter((empresa) => {
-    if (empresa.statusFunil !== StatusFunil.FECHADO) return false;
-    const reference = empresa.dataFechamento ?? empresa.updatedAt;
-    return reference >= daysAgo(30);
-  }).length;
-
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const fechadosMes = empresas.filter((empresa) => {
-    if (empresa.statusFunil !== StatusFunil.FECHADO) return false;
-    const reference = empresa.dataFechamento ?? empresa.updatedAt;
-    return reference >= startOfMonth;
-  }).length;
+  const trend7d = trend30d.slice(-7);
   const metaMes = 30;
 
-  const leadsQuentes = empresas.filter(
-    (empresa) =>
-      empresa.statusFunil === StatusFunil.EM_CONVERSA || empresa.statusFunil === StatusFunil.REUNIAO_AGENDADA,
-  ).length;
-
-  const tarefasHoje = empresas.filter(
-    (empresa) => empresa.proximaAcaoData && isSameDay(empresa.proximaAcaoData, new Date()),
-  ).length;
-  const tarefasAtrasadas = empresas.filter(
-    (empresa) => empresa.proximaAcaoData && empresa.proximaAcaoData.getTime() < new Date().setHours(0, 0, 0, 0),
-  ).length;
-  const semProximaAcao = empresas.filter((empresa) => !empresa.proximaAcao && !empresa.proximaAcaoData).length;
-
-  const proximasInteracoes = await prisma.interacao.findMany({
-    include: { empresa: true },
-    orderBy: { data: "asc" },
-    take: 5,
-  });
-
-  const interacoesRecentes = await prisma.interacao.findMany({
-    include: { empresa: true },
-    orderBy: { createdAt: "desc" },
-    take: 8,
-  });
-
-  // tendência últimos 30 dias (mensagens1 vs respostas)
-  const makeTrend = (days: number) =>
-    Array.from({ length: days }).map((_, idx) => {
-      const day = addDays(today, idx - (days - 1)); // oldest to newest
-      const s = startOfDay(day);
-      const e = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 23, 59, 59, 999);
-      return { start: s, end: e };
-    });
-
-  const trendDays30 = makeTrend(30);
-
-  const trendMensagens = await Promise.all(
-    trendDays30.map((range) =>
-      prisma.interacao.count({
-        where: { tipo: TipoInteracao.MENSAGEM_1, data: { gte: range.start, lte: range.end } },
-      }),
-    ),
-  );
-
-  const trendRespostas = await Promise.all(
-    trendDays30.map((range) =>
-      prisma.empresa.count({
-        where: {
-          statusFunil: {
-            in: [
-              StatusFunil.RESPONDEU,
-              StatusFunil.EM_CONVERSA,
-              StatusFunil.REUNIAO_AGENDADA,
-              StatusFunil.REUNIAO_REALIZADA,
-              StatusFunil.PROPOSTA_ENVIADA,
-              StatusFunil.FECHADO,
-            ],
-          },
-          updatedAt: { gte: range.start, lte: range.end },
-        },
-      }),
-    ),
-  );
-
-  const trend30d = trendDays30.map((range, idx) => ({
-    date: range.start,
-    label: range.start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-    mensagens1: trendMensagens[idx],
-    respostas: trendRespostas[idx],
-  }));
-  const trend7d = trend30d.slice(-7);
-
-  const proximasDatas = empresas
-    .flatMap((empresa) => {
-      const entries: Array<{ label: string; date: Date; empresa: typeof empresa }> = [];
-      if (empresa.proximaAcao && empresa.proximaAcaoData) {
-        entries.push({ label: empresa.proximaAcao, date: empresa.proximaAcaoData, empresa });
-      }
-      if (empresa.dataFollowup1) entries.push({ label: "Follow-up 1", date: empresa.dataFollowup1, empresa });
-      if (empresa.dataFollowup2) entries.push({ label: "Follow-up 2", date: empresa.dataFollowup2, empresa });
-      if (empresa.dataReuniao) entries.push({ label: "Reunião", date: empresa.dataReuniao, empresa });
-      if (empresa.dataFechamento) entries.push({ label: "Fechamento", date: empresa.dataFechamento, empresa });
-      return entries;
-    })
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 5);
-
-  // ações priorizadas: F1 pendente, follow-up conversa, reuniões de hoje/atrasadas
-  const nowStart = startOfDay(new Date());
   const urgentFollowup1 = followUps1Pendentes.map((empresa) => ({
     empresa: { id: empresa.id, nome: empresa.nome, cidade: empresa.cidade },
     label: "Follow-up 1",
@@ -469,21 +410,21 @@ export async function getDashboardData(): Promise<DashboardData> {
     tipo: "FOLLOWUP_CONVERSA" as const,
     date: empresa.updatedAt,
   }));
-  const reunioesHoje = empresas
-    .filter((e) => e.dataReuniao && isSameDay(e.dataReuniao, nowStart))
-    .map((e) => ({
-      empresa: { id: e.id, nome: e.nome, cidade: e.cidade },
+  const reunioesHojeList = reunioesHoje
+    .filter((empresa) => empresa.dataReuniao)
+    .map((empresa) => ({
+      empresa: { id: empresa.id, nome: empresa.nome, cidade: empresa.cidade },
       label: "Reunião hoje",
       tipo: "REUNIAO" as const,
-      date: e.dataReuniao as Date,
+      date: empresa.dataReuniao as Date,
     }));
 
-  const prioritizedActions = [...urgentFollowup1, ...urgentConversa, ...reunioesHoje]
+  const prioritizedActions = [...urgentFollowup1, ...urgentConversa, ...reunioesHojeList]
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 8);
 
-  return {
-    totalEmpresas: empresas.length,
+  const data = {
+    totalEmpresas,
     porStatus,
     fechados7,
     fechados30,
@@ -502,20 +443,139 @@ export async function getDashboardData(): Promise<DashboardData> {
     reunioesAgendadas: reunioesAgendadasCount,
     followUps1PendentesCount: followUps1Pendentes.length,
     followUpsConversaPendentesCount: followUpsConversaPendentes.length,
-    proximasDatas: proximasDatas.map((item) => ({
-      label: item.label,
-      date: item.date,
-      empresa: { id: item.empresa.id, nome: item.empresa.nome, cidade: item.empresa.cidade },
-    })),
+    proximasDatas,
     proximasInteracoes,
     interacoesRecentes,
     trend30d,
     trend7d,
     prioritizedActions,
   };
+
+  dashboardCache = { data, expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS };
+  return data;
 }
 
-async function ensureFollowup2Consistency() {
+async function getProximasDatas(): Promise<DashboardData["proximasDatas"]> {
+  const [proximaAcaoRows, followup1Rows, followup2Rows, reuniaoRows, fechamentoRows] = await Promise.all([
+    prisma.empresa.findMany({
+      where: {
+        proximaAcaoData: { not: null },
+        proximaAcao: { not: null },
+        NOT: { proximaAcao: "" },
+      },
+      orderBy: { proximaAcaoData: "asc" },
+      take: 5,
+      select: { id: true, nome: true, cidade: true, proximaAcao: true, proximaAcaoData: true },
+    }),
+    prisma.empresa.findMany({
+      where: { dataFollowup1: { not: null } },
+      orderBy: { dataFollowup1: "asc" },
+      take: 5,
+      select: { id: true, nome: true, cidade: true, dataFollowup1: true },
+    }),
+    prisma.empresa.findMany({
+      where: { dataFollowup2: { not: null } },
+      orderBy: { dataFollowup2: "asc" },
+      take: 5,
+      select: { id: true, nome: true, cidade: true, dataFollowup2: true },
+    }),
+    prisma.empresa.findMany({
+      where: { dataReuniao: { not: null } },
+      orderBy: { dataReuniao: "asc" },
+      take: 5,
+      select: { id: true, nome: true, cidade: true, dataReuniao: true },
+    }),
+    prisma.empresa.findMany({
+      where: { dataFechamento: { not: null } },
+      orderBy: { dataFechamento: "asc" },
+      take: 5,
+      select: { id: true, nome: true, cidade: true, dataFechamento: true },
+    }),
+  ]);
+
+  const entries: Array<{ label: string; date: Date; empresa: { id: string; nome: string; cidade: string } }> = [];
+
+  for (const row of proximaAcaoRows) {
+    if (!row.proximaAcao || !row.proximaAcaoData) continue;
+    entries.push({
+      label: row.proximaAcao,
+      date: row.proximaAcaoData,
+      empresa: { id: row.id, nome: row.nome, cidade: row.cidade },
+    });
+  }
+  for (const row of followup1Rows) {
+    if (!row.dataFollowup1) continue;
+    entries.push({
+      label: "Follow-up 1",
+      date: row.dataFollowup1,
+      empresa: { id: row.id, nome: row.nome, cidade: row.cidade },
+    });
+  }
+  for (const row of followup2Rows) {
+    if (!row.dataFollowup2) continue;
+    entries.push({
+      label: "Follow-up 2",
+      date: row.dataFollowup2,
+      empresa: { id: row.id, nome: row.nome, cidade: row.cidade },
+    });
+  }
+  for (const row of reuniaoRows) {
+    if (!row.dataReuniao) continue;
+    entries.push({
+      label: "Reunião",
+      date: row.dataReuniao,
+      empresa: { id: row.id, nome: row.nome, cidade: row.cidade },
+    });
+  }
+  for (const row of fechamentoRows) {
+    if (!row.dataFechamento) continue;
+    entries.push({
+      label: "Fechamento",
+      date: row.dataFechamento,
+      empresa: { id: row.id, nome: row.nome, cidade: row.cidade },
+    });
+  }
+
+  return entries.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 5);
+}
+
+async function getTrendData(days: number, responseStatuses: StatusFunil[]) {
+  const end = new Date();
+  const start = startOfDay(addDays(end, -(days - 1)));
+  const dateKey = (value: Date) => value.toISOString().slice(0, 10);
+
+  const mensagensRows = await prisma.$queryRaw<{ day: Date; count: number }[]>(Prisma.sql`
+    SELECT date_trunc('day', "data") AS day, COUNT(*)::int AS count
+    FROM "Interacao"
+    WHERE "tipo" = ${TipoInteracao.MENSAGEM_1}
+      AND "data" >= ${start}
+    GROUP BY day
+  `);
+
+  const respostasRows = await prisma.$queryRaw<{ day: Date; count: number }[]>(Prisma.sql`
+    SELECT date_trunc('day', "updatedAt") AS day, COUNT(*)::int AS count
+    FROM "Empresa"
+    WHERE "statusFunil" IN (${Prisma.join(responseStatuses)})
+      AND "updatedAt" >= ${start}
+    GROUP BY day
+  `);
+
+  const mensagensMap = new Map(mensagensRows.map((row) => [dateKey(row.day), row.count]));
+  const respostasMap = new Map(respostasRows.map((row) => [dateKey(row.day), row.count]));
+
+  return Array.from({ length: days }).map((_, idx) => {
+    const day = addDays(start, idx);
+    const key = dateKey(day);
+    return {
+      date: day,
+      label: day.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      mensagens1: mensagensMap.get(key) ?? 0,
+      respostas: respostasMap.get(key) ?? 0,
+    };
+  });
+}
+
+export async function ensureFollowup2Consistency() {
   // Garantir que follow-up 2 mova o status para FOLLOWUP_LONGO (casos antigos em EM_CONVERSA)
   await prisma.empresa.updateMany({
     where: {

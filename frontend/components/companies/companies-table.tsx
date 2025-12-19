@@ -1,6 +1,6 @@
 import { Building2, Link as LinkIcon, MapPin } from "lucide-react";
 import Link from "next/link";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, tipoSiteLabels } from "@/lib/dictionaries";
 import { formatDate, formatRelative } from "@/lib/utils";
 import { isFollowup1Pending } from "@/lib/followup-rules";

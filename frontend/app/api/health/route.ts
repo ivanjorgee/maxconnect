@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { createApiLogger, respondJson } from "@/lib/api-logger";
 
-export async function GET() {
-  return NextResponse.json({ ok: true, time: new Date().toISOString() });
+export async function GET(request: Request) {
+  const apiLogger = createApiLogger(request, "/api/health");
+  return respondJson(apiLogger, { ok: true, time: new Date().toISOString() });
 }

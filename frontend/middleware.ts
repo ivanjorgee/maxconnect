@@ -27,6 +27,15 @@ async function isValidToken(token: string) {
   }
 }
 
+function getBearerToken(req: NextRequest) {
+  const header = req.headers.get("authorization");
+  if (!header) return null;
+  const [scheme, token] = header.split(" ");
+  if (!scheme || !token) return null;
+  if (scheme.toLowerCase() !== "bearer") return null;
+  return token;
+}
+
 function isPublicPath(pathname: string) {
   if (pathname.startsWith("/_next")) return true;
   if (pathname.startsWith("/public")) return true;
@@ -53,8 +62,11 @@ export async function middleware(req: NextRequest) {
     return handleUnauthorized(req);
   }
 
-  const token = req.cookies.get(AUTH_COOKIE)?.value;
-  if (!token || !(await isValidToken(token))) {
+  const cookieToken = req.cookies.get(AUTH_COOKIE)?.value;
+  const bearerToken = getBearerToken(req);
+  const cookieValid = cookieToken ? await isValidToken(cookieToken) : false;
+  const bearerValid = bearerToken ? await isValidToken(bearerToken) : false;
+  if (!cookieValid && !bearerValid) {
     return handleUnauthorized(req);
   }
 

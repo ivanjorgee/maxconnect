@@ -1,21 +1,27 @@
-import { NextResponse } from "next/server";
 import { createEmpresa, getEmpresasPage } from "@/lib/data";
 import { requireApiAuth, unauthorizedResponse } from "@/lib/auth";
 import { companyCreateSchema, companyListQuerySchema, formatZodError } from "@/lib/validation";
 import { logger } from "@/lib/logger";
+import { createApiLogger, respondJson } from "@/lib/api-logger";
 
 export async function GET(request: Request) {
+  const apiLogger = createApiLogger(request, "/api/companies");
   try {
     const auth = await requireApiAuth(request);
-    if (!auth) return unauthorizedResponse();
+    if (!auth) {
+      apiLogger.log(401);
+      return apiLogger.withRequestId(unauthorizedResponse());
+    }
 
     const url = new URL(request.url);
     const rawParams = Object.fromEntries(url.searchParams.entries());
     const parsed = companyListQuerySchema.safeParse(rawParams);
     if (!parsed.success) {
-      return NextResponse.json(
+      return respondJson(
+        apiLogger,
         { error: "Parametros invalidos.", details: formatZodError(parsed.error) },
         { status: 400 },
+        { userId: auth.userId },
       );
     }
 
@@ -35,24 +41,30 @@ export async function GET(request: Request) {
       },
       { page, pageSize },
     );
-    return NextResponse.json(companies);
+    return respondJson(apiLogger, companies, undefined, { userId: auth.userId });
   } catch (error) {
-    logger.error("Error fetching companies", { error });
-    return NextResponse.json({ error: "Erro ao buscar empresas" }, { status: 500 });
+    logger.error("Error fetching companies", { error, requestId: apiLogger.requestId });
+    return respondJson(apiLogger, { error: "Erro ao buscar empresas" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
+  const apiLogger = createApiLogger(request, "/api/companies");
   try {
     const auth = await requireApiAuth(request);
-    if (!auth) return unauthorizedResponse();
+    if (!auth) {
+      apiLogger.log(401);
+      return apiLogger.withRequestId(unauthorizedResponse());
+    }
 
     const body = await request.json().catch(() => null);
     const parsed = companyCreateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
+      return respondJson(
+        apiLogger,
         { error: "Dados invalidos.", details: formatZodError(parsed.error) },
         { status: 400 },
+        { userId: auth.userId },
       );
     }
     const payload = parsed.data;
@@ -82,9 +94,9 @@ export async function POST(request: Request) {
       proximaAcaoData: new Date(),
     });
 
-    return NextResponse.json(company, { status: 201 });
+    return respondJson(apiLogger, company, { status: 201 }, { userId: auth.userId });
   } catch (error) {
-    logger.error("Error creating company", { error });
-    return NextResponse.json({ error: "Erro ao criar empresa" }, { status: 500 });
+    logger.error("Error creating company", { error, requestId: apiLogger.requestId });
+    return respondJson(apiLogger, { error: "Erro ao criar empresa" }, { status: 500 });
   }
 }

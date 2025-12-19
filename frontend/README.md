@@ -24,6 +24,8 @@ AUTH_PASSWORD_HASH="$2a$10$..."      # opcional, prioridade sobre AUTH_PASSWORD
 AUTH_JWT_SECRET="chave-longae-unica"
 AUTH_DEV_BYPASS="false"
 CRON_SECRET="chave-para-o-cron"
+UPSTASH_REDIS_REST_URL="https://SEU_ENDPOINT_REST" # opcional para rate limit distribuído
+UPSTASH_REDIS_REST_TOKEN="SEU_TOKEN"
 ```
 > Lembre de reiniciar `npm run dev` depois de criar/alterar o `.env.local`.
 

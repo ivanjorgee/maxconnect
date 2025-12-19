@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, FormEvent } from "react";
 import { ModeloAbertura, StatusFunil } from "@prisma/client";
 import { Copy, Clock3, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { statusLabels } from "@/lib/dictionaries";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";

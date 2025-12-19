@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StatusFunil } from "@prisma/client";
 import { FunnelBoard } from "@/components/funnel/funnel-board";
 import { StatusFilterBar } from "@/components/dashboard/status-filter-bar";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { isToday, isPast } from "@/lib/utils";
 import { ProspeccaoSession } from "./prospeccao-session";
@@ -15,7 +15,17 @@ import { isConversaPending, isFollowup1Pending } from "@/lib/followup-rules";
 
 type QuickFilter = "all" | "today" | "overdue";
 
-export default function LeadsClient({ empresas, startSession = false, filter }: { empresas: EmpresaWithInteracoes[]; startSession?: boolean; filter?: string }) {
+export default function LeadsClient({
+  empresas,
+  statusCounts,
+  startSession = false,
+  filter,
+}: {
+  empresas: EmpresaWithInteracoes[];
+  statusCounts?: Record<StatusFunil, number>;
+  startSession?: boolean;
+  filter?: string;
+}) {
   const [statusFilter, setStatusFilter] = useState<StatusFunil | null>(null);
   const [quick, setQuick] = useState<QuickFilter>("all");
   const [sessionOpen, setSessionOpen] = useState(startSession);
@@ -69,10 +79,12 @@ export default function LeadsClient({ empresas, startSession = false, filter }: 
     });
   }, [empresas, quick, statusFilter, followupPending, conversaPending]);
 
-  const counts = empresas.reduce((acc, empresa) => {
-    acc[empresa.statusFunil] = (acc[empresa.statusFunil] ?? 0) + 1;
-    return acc;
-  }, {} as Record<StatusFunil, number>);
+  const counts =
+    statusCounts ??
+    empresas.reduce((acc, empresa) => {
+      acc[empresa.statusFunil] = (acc[empresa.statusFunil] ?? 0) + 1;
+      return acc;
+    }, {} as Record<StatusFunil, number>);
 
   return (
     <div className="space-y-4 lg:grid lg:grid-cols-[2fr_1fr] lg:gap-4">

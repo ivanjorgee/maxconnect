@@ -45,6 +45,7 @@ npm run dev
 - `AUTH_JWT_SECRET`: chave para assinatura dos tokens.
 - `AUTH_DEV_BYPASS`: use `true` apenas em dev local.
 - `CRON_SECRET`: protege o endpoint de cron.
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`: opcional, habilita rate limit distribuído via Upstash Redis.
 
 ## Migracoes em producao
 

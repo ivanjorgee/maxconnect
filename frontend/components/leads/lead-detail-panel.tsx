@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Phone, ExternalLink, Copy } from "lucide-react";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, origemLabels } from "@/lib/dictionaries";
 import { formatRelative } from "@/lib/utils";
 import { modelosFollowUp1 } from "@/lib/modelosFollowup";

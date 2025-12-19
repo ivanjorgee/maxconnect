@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmpresaWithInteracoes } from "@/lib/data";
+import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, origemLabels, statusLabels } from "@/lib/dictionaries";
 import { formatDate } from "@/lib/utils";
 import { LeadStatusBadge } from "./lead-status-badge";

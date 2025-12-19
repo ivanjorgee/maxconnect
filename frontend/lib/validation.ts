@@ -10,6 +10,7 @@ import {
   TipoSite,
 } from "@prisma/client";
 import { validatePassword } from "./password";
+import { PROXIMA_ACAO_VALUES } from "./proxima-acao";
 
 const trimmedString = z.string().trim();
 const nonEmptyString = trimmedString.min(1);
@@ -153,7 +154,7 @@ export const companyUpdateSchema = z.object({
   dataFechamento: optionalDate,
   tags: z.array(nonEmptyString.max(50)).optional(),
   observacoes: optionalNullableString,
-  proximaAcao: nonEmptyString.max(60).nullable().optional(),
+  proximaAcao: z.enum(PROXIMA_ACAO_VALUES).nullable().optional(),
   proximaAcaoData: optionalDate,
   dataMensagem1: optionalDate,
   avaliacaoGoogle: optionalNullableNumber,

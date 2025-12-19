@@ -1,18 +1,13 @@
 import { Prisma, StatusFunil, TipoInteracao, Canal, ModeloAbertura } from "@prisma/client";
 import { prisma } from "./prisma";
+import { ProximaAcao } from "./proxima-acao";
 
-export type ProximaAcao =
-  | "FOLLOW_UP_1"
-  | "FOLLOW_UP_2"
-  | "REALIZAR_REUNIAO"
-  | "ENVIAR_PROPOSTA"
-  | "FOLLOW_UP_LONGO"
-  | "NENHUMA";
+export type { ProximaAcao } from "./proxima-acao";
 
 type ContextoProximaAcao = {
   statusFunil: StatusFunil;
   dataReuniao?: Date | null;
-  proximaAcao?: string | null;
+  proximaAcao?: ProximaAcao | null;
   proximaAcaoData?: Date | null;
 };
 
@@ -32,7 +27,7 @@ export function getProximaAcaoSugerida(ctx: ContextoProximaAcao): { proximaAcao:
   if (ctx.statusFunil === StatusFunil.EM_CONVERSA) {
     // manter ação atual se existir; caso contrário sugerir follow-up curto
     return ctx.proximaAcao
-      ? { proximaAcao: ctx.proximaAcao as ProximaAcao, proximaAcaoData: ctx.proximaAcaoData ?? addDays(hoje, 2) }
+      ? { proximaAcao: ctx.proximaAcao, proximaAcaoData: ctx.proximaAcaoData ?? addDays(hoje, 2) }
       : { proximaAcao: "FOLLOW_UP_1", proximaAcaoData: addDays(hoje, 2) };
   }
 
@@ -56,7 +51,7 @@ export function getProximaAcaoSugerida(ctx: ContextoProximaAcao): { proximaAcao:
     return { proximaAcao: null, proximaAcaoData: null };
   }
 
-  return { proximaAcao: ctx.proximaAcao as ProximaAcao | null, proximaAcaoData: ctx.proximaAcaoData ?? null };
+  return { proximaAcao: ctx.proximaAcao ?? null, proximaAcaoData: ctx.proximaAcaoData ?? null };
 }
 
 function addDays(base: Date, days: number) {
@@ -169,7 +164,9 @@ export async function registrarInteracaoMacro(params: {
   const cfg = macroConfig[params.macro];
   const agora = new Date();
   const dataInteracao = params.data ? new Date(params.data) : agora;
-  const dataReuniaoEscolhida = params.macro === "REUNIAO_AGENDADA" && params.data ? new Date(params.data) : empresa.dataReuniao ?? null;
+  const dataReuniaoEscolhida =
+    params.macro === "REUNIAO_AGENDADA" && params.data ? new Date(params.data) : empresa.dataReuniao ?? null;
+  const baseTime = dataInteracao;
 
   const proximaData =
     cfg.proximaAcao === "REALIZAR_REUNIAO" && dataReuniaoEscolhida
@@ -177,9 +174,9 @@ export async function registrarInteracaoMacro(params: {
       : cfg.proximaAcaoData !== undefined
         ? cfg.proximaAcaoData
         : cfg.proximaAcaoOffsetHours
-          ? addHours(agora, cfg.proximaAcaoOffsetHours)
+          ? addHours(baseTime, cfg.proximaAcaoOffsetHours)
           : cfg.proximaAcaoOffsetDays
-            ? addDays(startOfDay(agora), cfg.proximaAcaoOffsetDays)
+            ? addDays(startOfDay(baseTime), cfg.proximaAcaoOffsetDays)
             : null;
 
   const descricao = `${cfg.descricao({ modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura })}${
@@ -202,9 +199,9 @@ export async function registrarInteracaoMacro(params: {
       proximaAcao: cfg.proximaAcao !== undefined ? cfg.proximaAcao : empresa.proximaAcao,
       proximaAcaoData:
         cfg.proximaAcaoData !== undefined ? cfg.proximaAcaoData : proximaData ?? empresa.proximaAcaoData ?? null,
-      dataMensagem1: cfg.novoStatus === StatusFunil.MENSAGEM_1_ENVIADA ? agora : empresa.dataMensagem1,
-      dataFollowup1: params.macro === "FOLLOWUP_1" ? agora : empresa.dataFollowup1,
-      dataFollowup2: params.macro === "FOLLOWUP_2" ? agora : empresa.dataFollowup2,
+      dataMensagem1: cfg.novoStatus === StatusFunil.MENSAGEM_1_ENVIADA ? dataInteracao : empresa.dataMensagem1,
+      dataFollowup1: params.macro === "FOLLOWUP_1" ? dataInteracao : empresa.dataFollowup1,
+      dataFollowup2: params.macro === "FOLLOWUP_2" ? dataInteracao : empresa.dataFollowup2,
       dataReuniao: cfg.novoStatus === StatusFunil.REUNIAO_AGENDADA ? dataReuniaoEscolhida : empresa.dataReuniao,
       modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura ?? undefined,
     };
