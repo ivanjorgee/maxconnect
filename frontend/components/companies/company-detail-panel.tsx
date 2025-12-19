@@ -14,7 +14,7 @@ import { TagList } from "@/components/ui/tag-list";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
 import { MacroTipo } from "@/lib/proximaAcao";
-import { modelosFollowUp1 } from "@/lib/modelosFollowup";
+import { CADENCE_TEMPLATES, resolveM1TemplateId } from "@/lib/cadence";
 import { isConversaPending, isFollowup1Pending } from "@/lib/followup-rules";
 import { FollowupConversaAction } from "./followup-conversa-action";
 
@@ -41,10 +41,9 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
   const [isPending, startTransition] = useTransition();
 
   const modeloSelecionado = useMemo(() => modelosAbertura.find((m) => m.codigo === modeloAbertura), [modeloAbertura]);
-  const followupModelTemplate = useMemo(() => {
-    const code = (company.modeloAbertura ?? modeloAbertura) as keyof typeof modelosFollowUp1;
-    return code ? modelosFollowUp1[code] : null;
-  }, [company.modeloAbertura, modeloAbertura]);
+  const followupModelTemplate = useMemo(() => CADENCE_TEMPLATES.FU1, []);
+  const m1TemplateId = resolveM1TemplateId(company.currentTemplate, company.id);
+  const m1Template = CADENCE_TEMPLATES[m1TemplateId];
 
   const followup1Pending = useMemo(() => isFollowup1Pending(company), [company]);
   const conversaPending = useMemo(() => isConversaPending(company), [company]);
@@ -214,14 +213,33 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
         </div>
       </div>
 
-      {followupModelTemplate ? (
+      {m1Template ? (
         <div className="space-y-1 rounded-lg border border-primary/30 bg-background-elevated px-3 py-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-foreground">{followupModelTemplate.titulo}</p>
+            <p className="text-xs font-semibold text-foreground">Mensagem 1 ({m1TemplateId})</p>
             <button
               type="button"
               onClick={async () => {
-                await navigator.clipboard.writeText(followupModelTemplate.texto);
+                await navigator.clipboard.writeText(m1Template.text);
+                setMessage("Mensagem 1 copiada.");
+              }}
+              className="text-[11px] text-primary underline"
+            >
+              Copiar texto
+            </button>
+          </div>
+          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{m1Template.text}</p>
+        </div>
+      ) : null}
+
+      {followupModelTemplate ? (
+        <div className="space-y-1 rounded-lg border border-primary/30 bg-background-elevated px-3 py-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">{followupModelTemplate.title}</p>
+            <button
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(followupModelTemplate.text);
                 setMessage("Texto de follow-up copiado.");
               }}
               className="text-[11px] text-primary underline"
@@ -229,12 +247,12 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
               Copiar texto
             </button>
           </div>
-          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{followupModelTemplate.texto}</p>
+          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{followupModelTemplate.text}</p>
         </div>
       ) : null}
 
       {conversaPending && followupModelTemplate ? (
-        <FollowupConversaAction empresaId={company.id} template={followupModelTemplate.texto} />
+        <FollowupConversaAction empresaId={company.id} template={followupModelTemplate.text} />
       ) : null}
 
       <div className="space-y-2">
@@ -254,8 +272,10 @@ export function CompanyDetailPanel({ company, lastInteractionAt, nextActionLabel
 
       <div className="grid gap-2 md:grid-cols-3">
         <QuickButton label="Marcar Mensagem 1" loading={pendingAction === "MENSAGEM_1"} onClick={() => runMacro("MENSAGEM_1")} />
+        <QuickButton label="Recebi resposta" loading={pendingAction === "RESPONDEU"} onClick={() => runMacro("RESPONDEU")} />
         <QuickButton label="Follow-up 1 enviado" loading={pendingAction === "FOLLOWUP_1"} onClick={() => runMacro("FOLLOWUP_1")} />
         <QuickButton label="Follow-up 2 enviado" loading={pendingAction === "FOLLOWUP_2"} onClick={() => runMacro("FOLLOWUP_2")} />
+        <QuickButton label="Break-up enviado" loading={pendingAction === "BREAKUP"} onClick={() => runMacro("BREAKUP")} />
         <QuickButton label="Agendar reunião" loading={pendingAction === "REUNIAO_AGENDADA"} onClick={() => setScheduleOpen(true)} />
         <QuickButton label="Reunião realizada" loading={pendingAction === "REUNIAO_REALIZADA"} onClick={() => runMacro("REUNIAO_REALIZADA")} />
         <QuickButton label="Proposta enviada" loading={pendingAction === "PROPOSTA_ENVIADA"} onClick={() => runMacro("PROPOSTA_ENVIADA")} />

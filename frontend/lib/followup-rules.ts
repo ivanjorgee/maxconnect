@@ -9,6 +9,7 @@ type EmpresaFollowupLike = {
   statusFunil: StatusFunil;
   proximaAcao?: string | null;
   dataReuniao?: Date | string | null;
+  noResponseUntil?: Date | string | null;
   interacoes: InteracaoLike[];
 };
 
@@ -16,6 +17,9 @@ const LIMIT_MS = 24 * 60 * 60 * 1000;
 
 export function isFollowup1Pending(empresa: EmpresaFollowupLike): boolean {
   const limit = Date.now() - LIMIT_MS;
+  const blocked =
+    empresa.noResponseUntil && new Date(empresa.noResponseUntil).getTime() > Date.now();
+  if (blocked) return false;
   const last = empresa.interacoes[0];
   const lastIsM1 = last?.tipo === TipoInteracao.MENSAGEM_1;
   const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
@@ -25,6 +29,9 @@ export function isFollowup1Pending(empresa: EmpresaFollowupLike): boolean {
 
 export function isConversaPending(empresa: EmpresaFollowupLike): boolean {
   const limit = Date.now() - LIMIT_MS;
+  const blocked =
+    empresa.noResponseUntil && new Date(empresa.noResponseUntil).getTime() > Date.now();
+  if (blocked) return false;
   const last = empresa.interacoes[0];
   const lastIsOlder = last ? new Date(last.data).getTime() <= limit : false;
   const noAction = !empresa.proximaAcao;

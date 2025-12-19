@@ -26,6 +26,8 @@ AUTH_DEV_BYPASS="false"
 CRON_SECRET="chave-para-o-cron"
 UPSTASH_REDIS_REST_URL="https://SEU_ENDPOINT_REST" # opcional para rate limit distribuído
 UPSTASH_REDIS_REST_TOKEN="SEU_TOKEN"
+CADENCE_MAX_ATTEMPTS="4" # opcional, default 4
+CADENCE_NO_RESPONSE_DAYS="30" # opcional, default 30
 ```
 > Lembre de reiniciar `npm run dev` depois de criar/alterar o `.env.local`.
 

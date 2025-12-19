@@ -11,7 +11,7 @@ import { canalLabels } from "@/lib/dictionaries";
 import type { EmpresaWithInteracoes } from "@/lib/data";
 import { MacroTipo } from "@/lib/proximaAcao";
 import { modelosAbertura } from "@/lib/modelosAbertura";
-import { modelosFollowUp1 } from "@/lib/modelosFollowup";
+import { CADENCE_TEMPLATES, type CadenceTemplateId, resolveM1TemplateId } from "@/lib/cadence";
 import { formatDate, formatRelative } from "@/lib/utils";
 
 const canais = Object.values(Canal);
@@ -26,7 +26,8 @@ export function ActivityForm({ empresa }: Props) {
 
   const [canal, setCanal] = useState<Canal>(lastCanal);
   const [modeloAbertura, setModeloAbertura] = useState<ModeloAberturaEnum>((empresa.modeloAbertura as ModeloAberturaEnum) ?? ModeloAberturaEnum.M1);
-  const [descricao, setDescricao] = useState(defaultDescricao(TipoInteracao.MENSAGEM_1, (empresa.modeloAbertura as ModeloAberturaEnum) ?? modeloAbertura));
+  const m1TemplateId = resolveM1TemplateId(empresa.currentTemplate, empresa.id);
+  const [descricao, setDescricao] = useState(defaultDescricao(TipoInteracao.MENSAGEM_1, m1TemplateId));
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<MacroTipo | null>(null);
@@ -37,8 +38,8 @@ export function ActivityForm({ empresa }: Props) {
   const nextActionLabel = useNextActionLabel(empresa);
 
   useEffect(() => {
-    setDescricao(defaultDescricao(TipoInteracao.MENSAGEM_1, modeloAbertura));
-  }, [modeloAbertura]);
+    setDescricao(defaultDescricao(TipoInteracao.MENSAGEM_1, m1TemplateId));
+  }, [m1TemplateId]);
 
   useEffect(() => {
     setCanal(lastCanal);
@@ -48,11 +49,16 @@ export function ActivityForm({ empresa }: Props) {
     event.preventDefault();
     setMessage(null);
 
-    const response = await fetch(`/api/companies/${empresa.id}/interacoes`, {
+    const response = await fetch(`/api/companies/${empresa.id}/macro`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo: TipoInteracao.MENSAGEM_1, canal, data: new Date().toISOString(), descricao }),
+      body: JSON.stringify({
+        macro: "MENSAGEM_1",
+        canal,
+        descricao,
+        modeloAbertura,
+      }),
     });
 
     if (!response.ok) {
@@ -60,7 +66,7 @@ export function ActivityForm({ empresa }: Props) {
       return;
     }
 
-    setDescricao(defaultDescricao(TipoInteracao.MENSAGEM_1, modeloAbertura));
+    setDescricao(defaultDescricao(TipoInteracao.MENSAGEM_1, m1TemplateId));
     startTransition(() => router.refresh());
     setMessage("Interação registrada.");
   }
@@ -71,26 +77,29 @@ export function ActivityForm({ empresa }: Props) {
   }
 
   function getMacroText(macro: MacroTipo) {
-    const code = (modeloAbertura as keyof typeof modelosFollowUp1) || "M1";
     if (macro === "MENSAGEM_1") {
-      const modelo = modelosAbertura.find((m) => m.codigo === code);
-      return modelo?.texto ?? null;
+      return CADENCE_TEMPLATES[m1TemplateId]?.text ?? null;
     }
-  if (macro === "FOLLOWUP_1") {
-    return modelosFollowUp1[code]?.texto ?? null;
+    if (macro === "FOLLOWUP_1") {
+      return CADENCE_TEMPLATES.FU1.text;
+    }
+    if (macro === "FOLLOWUP_2") {
+      return CADENCE_TEMPLATES.FU2.text;
+    }
+    if (macro === "BREAKUP") {
+      return CADENCE_TEMPLATES.BREAKUP.text;
+    }
+    if (macro === "CONVERSA_INICIADA") {
+      return "Oi! Obrigado por responder. Vamos seguir por aqui para alinhar os próximos passos? Posso te mandar um resumo rápido agora.";
+    }
+    if (macro === "RESPONDEU") {
+      return null;
+    }
+    if (macro === "PERDIDO") {
+      return "Registro atualizado como perdido. Encerrando follow-up para este lead.";
+    }
+    return null;
   }
-  if (macro === "FOLLOWUP_2") {
-    // reutiliza a copy do follow-up 1 como segunda tentativa
-    return modelosFollowUp1[code]?.texto ?? null;
-  }
-  if (macro === "CONVERSA_INICIADA") {
-    return "Oi! Obrigado por responder. Vamos seguir por aqui para alinhar os próximos passos? Posso te mandar um resumo rápido agora.";
-  }
-  if (macro === "PERDIDO") {
-    return "Registro atualizado como perdido. Encerrando follow-up para este lead.";
-  }
-  return null;
-}
 
   async function runMacro(macro: MacroTipo) {
     setMessage(null);
@@ -202,9 +211,11 @@ export function ActivityForm({ empresa }: Props) {
         </div>
         <div className="grid gap-2 md:grid-cols-3">
           <QuickButton label="Marcar Mensagem 1" loading={pendingAction === "MENSAGEM_1"} onClick={() => runMacro("MENSAGEM_1")} />
+          <QuickButton label="Recebi resposta" loading={pendingAction === "RESPONDEU"} onClick={() => runMacro("RESPONDEU")} />
           <QuickButton label="Conversa iniciada" loading={pendingAction === "CONVERSA_INICIADA"} onClick={() => runMacro("CONVERSA_INICIADA")} />
           <QuickButton label="Follow-up 1 enviado" loading={pendingAction === "FOLLOWUP_1"} onClick={() => runMacro("FOLLOWUP_1")} />
           <QuickButton label="Follow-up 2 enviado" loading={pendingAction === "FOLLOWUP_2"} onClick={() => runMacro("FOLLOWUP_2")} />
+          <QuickButton label="Break-up enviado" loading={pendingAction === "BREAKUP"} onClick={() => runMacro("BREAKUP")} />
           <QuickButton label="Agendar reunião" loading={pendingAction === "REUNIAO_AGENDADA"} onClick={() => setScheduleOpen(true)} />
           <QuickButton label="Reunião realizada" loading={pendingAction === "REUNIAO_REALIZADA"} onClick={() => runMacro("REUNIAO_REALIZADA")} />
           <QuickButton label="Proposta enviada" loading={pendingAction === "PROPOSTA_ENVIADA"} onClick={() => runMacro("PROPOSTA_ENVIADA")} />
@@ -245,10 +256,11 @@ function QuickButton({ label, onClick, loading }: { label: string; onClick: () =
   );
 }
 
-function defaultDescricao(tipo: TipoInteracao, modelo?: string | null) {
-  if (tipo === TipoInteracao.MENSAGEM_1) return `Mensagem 1 enviada${modelo ? ` (modelo ${modelo})` : ""}.`;
+function defaultDescricao(tipo: TipoInteracao, templateId?: CadenceTemplateId | null) {
+  if (tipo === TipoInteracao.MENSAGEM_1) return `Mensagem 1 enviada${templateId ? ` (${templateId})` : ""}.`;
   if (tipo === TipoInteracao.FOLLOWUP_1) return "Follow-up 1 enviado.";
   if (tipo === TipoInteracao.FOLLOWUP_2) return "Follow-up 2 enviado.";
+  if (tipo === TipoInteracao.BREAKUP) return "Break-up enviado.";
   if (tipo === TipoInteracao.FOLLOWUP_CONVERSA) return "Follow-up de conversa enviado.";
   if (tipo === TipoInteracao.REUNIAO) return "Reunião agendada.";
   return "Interação registrada.";

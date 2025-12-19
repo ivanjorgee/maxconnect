@@ -1,5 +1,6 @@
 import {
   autoScheduleFollowup1After24h,
+  applyNoResponseCadenceStop,
   ensureFollowup2Consistency,
   marcarFollowUpConversaComoProximaAcao,
   scheduleFollowup1ForTodayLeads,
@@ -18,11 +19,13 @@ export async function POST(request: Request) {
 
   try {
     await ensureFollowup2Consistency();
+    const paused = await applyNoResponseCadenceStop();
     const scheduledToday = await scheduleFollowup1ForTodayLeads();
     const autoAfter24h = await autoScheduleFollowup1After24h();
     const conversa = await marcarFollowUpConversaComoProximaAcao();
 
     logger.info("Cron followups executado", {
+      paused: paused.updated,
       scheduledToday: scheduledToday.updated,
       autoAfter24h: autoAfter24h.updated,
       conversa: conversa.updated,
@@ -31,6 +34,7 @@ export async function POST(request: Request) {
 
     return respondJson(apiLogger, {
       ok: true,
+      paused,
       scheduledToday,
       autoAfter24h,
       conversa,

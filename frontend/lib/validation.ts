@@ -76,10 +76,12 @@ const macroValues = [
   "MENSAGEM_1",
   "FOLLOWUP_1",
   "FOLLOWUP_2",
+  "BREAKUP",
   "REUNIAO_AGENDADA",
   "REUNIAO_REALIZADA",
   "PROPOSTA_ENVIADA",
   "CONVERSA_INICIADA",
+  "RESPONDEU",
   "PERDIDO",
 ] as const;
 

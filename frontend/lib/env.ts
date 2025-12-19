@@ -14,6 +14,8 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  CADENCE_MAX_ATTEMPTS: z.string().optional(),
+  CADENCE_NO_RESPONSE_DAYS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -45,6 +47,8 @@ export const env = parsed.success
       CRON_SECRET: process.env.CRON_SECRET,
       UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+      CADENCE_MAX_ATTEMPTS: process.env.CADENCE_MAX_ATTEMPTS,
+      CADENCE_NO_RESPONSE_DAYS: process.env.CADENCE_NO_RESPONSE_DAYS,
     };
 
 export const isProd = env.NODE_ENV === "production";

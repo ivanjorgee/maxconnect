@@ -46,6 +46,8 @@ npm run dev
 - `AUTH_DEV_BYPASS`: use `true` apenas em dev local.
 - `CRON_SECRET`: protege o endpoint de cron.
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`: opcional, habilita rate limit distribuído via Upstash Redis.
+- `CADENCE_MAX_ATTEMPTS`: opcional, máximo de tentativas sem resposta (default 4).
+- `CADENCE_NO_RESPONSE_DAYS`: opcional, dias de pausa após SEM_RESPOSTA_30D (default 30).
 
 ## Migracoes em producao
 

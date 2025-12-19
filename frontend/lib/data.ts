@@ -1,5 +1,18 @@
-import { Canal, ModeloAbertura, OrigemLead, Prisma, Prioridade, StatusFunil, TicketMedioEstimado, TipoInteracao, TipoSite } from "@prisma/client";
+import {
+  Canal,
+  ModeloAbertura,
+  OrigemLead,
+  Prisma,
+  Prioridade,
+  StatusFunil,
+  TicketMedioEstimado,
+  TipoInteracao,
+  TipoSite,
+  InteracaoDirection,
+  InteracaoOutcome,
+} from "@prisma/client";
 import { prisma } from "./prisma";
+import { getCadenceConfig } from "./cadence";
 
 const interacoesSelect = {
   id: true,
@@ -7,6 +20,9 @@ const interacoesSelect = {
   canal: true,
   data: true,
   descricao: true,
+  direction: true,
+  templateId: true,
+  outcome: true,
   createdAt: true,
 };
 
@@ -47,6 +63,17 @@ export type DashboardData = {
   interacoesRecentes: Prisma.InteracaoGetPayload<{ include: { empresa: true } }>[];
   trend7d: Array<{ date: Date; label: string; mensagens1: number; respostas: number }>;
   trend30d: Array<{ date: Date; label: string; mensagens1: number; respostas: number }>;
+  replyRateByTemplate: Array<{ templateId: string; outbound: number; inbound: number; rate: number }>;
+  stepUp: {
+    respondeu: number;
+    emConversa: number;
+    proposta: number;
+    fechado: number;
+    rateConversa: number;
+    rateProposta: number;
+    rateFechado: number;
+    rateFechadoSobreResposta: number;
+  };
   prioritizedActions: Array<{
     empresa: { id: string; nome: string; cidade: string };
     label: string;
@@ -280,7 +307,16 @@ export async function updateEmpresa(
   });
 }
 
-export async function createInteracao(input: { empresaId: string; tipo: TipoInteracao; canal: Canal; data: Date | string; descricao: string }) {
+export async function createInteracao(input: {
+  empresaId: string;
+  tipo: TipoInteracao;
+  canal: Canal;
+  data: Date | string;
+  descricao: string;
+  direction?: InteracaoDirection | null;
+  templateId?: string | null;
+  outcome?: InteracaoOutcome | null;
+}) {
   return prisma.interacao.create({
     data: {
       empresaId: input.empresaId,
@@ -288,6 +324,9 @@ export async function createInteracao(input: { empresaId: string; tipo: TipoInte
       canal: input.canal,
       data: new Date(input.data),
       descricao: input.descricao,
+      direction: input.direction ?? undefined,
+      templateId: input.templateId ?? undefined,
+      outcome: input.outcome ?? undefined,
     },
   });
 }
@@ -304,6 +343,9 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const responseStatuses = [
     StatusFunil.RESPONDEU,
+    StatusFunil.OBJ_CONFIANCA,
+    StatusFunil.GATEKEEPER,
+    StatusFunil.PREVIEW_ENVIADO,
     StatusFunil.EM_CONVERSA,
     StatusFunil.REUNIAO_AGENDADA,
     StatusFunil.REUNIAO_REALIZADA,
@@ -326,6 +368,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     tarefasAtrasadas,
     semProximaAcao,
     porStatus,
+    replyRateByTemplate,
     fechados7,
     fechados30,
     fechadosMes,
@@ -351,6 +394,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     }),
     getStatusCounts(),
+    getReplyRateByTemplate(["M1A", "M1B"]),
     prisma.empresa.count({
       where: {
         statusFunil: StatusFunil.FECHADO,
@@ -397,6 +441,29 @@ export async function getDashboardData(): Promise<DashboardData> {
   const taxaRespostaHoje = mensagens1Hoje ? (respostasHoje / mensagens1Hoje) * 100 : 0;
   const trend7d = trend30d.slice(-7);
   const metaMes = 30;
+  const respondeuCount = porStatus[StatusFunil.RESPONDEU] ?? 0;
+  const emConversaCountTotal =
+    (porStatus[StatusFunil.EM_CONVERSA] ?? 0) +
+    (porStatus[StatusFunil.OBJ_CONFIANCA] ?? 0) +
+    (porStatus[StatusFunil.GATEKEEPER] ?? 0) +
+    (porStatus[StatusFunil.PREVIEW_ENVIADO] ?? 0) +
+    (porStatus[StatusFunil.REUNIAO_AGENDADA] ?? 0) +
+    (porStatus[StatusFunil.REUNIAO_REALIZADA] ?? 0) +
+    (porStatus[StatusFunil.PROPOSTA_ENVIADA] ?? 0) +
+    (porStatus[StatusFunil.FECHADO] ?? 0);
+  const propostaCount =
+    (porStatus[StatusFunil.PROPOSTA_ENVIADA] ?? 0) + (porStatus[StatusFunil.FECHADO] ?? 0);
+  const fechadoCount = porStatus[StatusFunil.FECHADO] ?? 0;
+  const stepUp = {
+    respondeu: respondeuCount,
+    emConversa: emConversaCountTotal,
+    proposta: propostaCount,
+    fechado: fechadoCount,
+    rateConversa: respondeuCount ? (emConversaCountTotal / respondeuCount) * 100 : 0,
+    rateProposta: emConversaCountTotal ? (propostaCount / emConversaCountTotal) * 100 : 0,
+    rateFechado: propostaCount ? (fechadoCount / propostaCount) * 100 : 0,
+    rateFechadoSobreResposta: respondeuCount ? (fechadoCount / respondeuCount) * 100 : 0,
+  };
 
   const urgentFollowup1 = followUps1Pendentes.map((empresa) => ({
     empresa: { id: empresa.id, nome: empresa.nome, cidade: empresa.cidade },
@@ -448,6 +515,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     interacoesRecentes,
     trend30d,
     trend7d,
+    replyRateByTemplate,
+    stepUp,
     prioritizedActions,
   };
 
@@ -579,6 +648,38 @@ async function getTrendData(days: number, responseStatuses: StatusFunil[]) {
   });
 }
 
+async function getReplyRateByTemplate(templateIds: string[]) {
+  if (!templateIds.length) return [];
+  const [outboundRows, inboundRows] = await Promise.all([
+    prisma.interacao.groupBy({
+      by: ["templateId"],
+      where: {
+        direction: InteracaoDirection.OUTBOUND,
+        templateId: { in: templateIds },
+      },
+      _count: { _all: true },
+    }),
+    prisma.interacao.groupBy({
+      by: ["templateId"],
+      where: {
+        direction: InteracaoDirection.INBOUND,
+        templateId: { in: templateIds },
+      },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const outboundMap = new Map(outboundRows.map((row) => [row.templateId ?? "", row._count._all]));
+  const inboundMap = new Map(inboundRows.map((row) => [row.templateId ?? "", row._count._all]));
+
+  return templateIds.map((templateId) => {
+    const outbound = outboundMap.get(templateId) ?? 0;
+    const inbound = inboundMap.get(templateId) ?? 0;
+    const rate = outbound ? (inbound / outbound) * 100 : 0;
+    return { templateId, outbound, inbound, rate };
+  });
+}
+
 export async function ensureFollowup2Consistency() {
   // Garantir que follow-up 2 mova o status para FOLLOWUP_LONGO (casos antigos em EM_CONVERSA)
   await prisma.empresa.updateMany({
@@ -590,6 +691,30 @@ export async function ensureFollowup2Consistency() {
       statusFunil: StatusFunil.FOLLOWUP_LONGO,
     },
   });
+}
+
+export async function applyNoResponseCadenceStop() {
+  const { maxAttempts, noResponseDays } = getCadenceConfig();
+  const now = new Date();
+  const noResponseUntil = addDays(startOfDay(now), noResponseDays);
+
+  const result = await prisma.empresa.updateMany({
+    where: {
+      attemptCount: { gte: maxAttempts },
+      lastInboundAt: null,
+      statusFunil: {
+        notIn: [StatusFunil.FECHADO, StatusFunil.PERDIDO, StatusFunil.SEM_RESPOSTA_30D],
+      },
+    },
+    data: {
+      statusFunil: StatusFunil.SEM_RESPOSTA_30D,
+      noResponseUntil,
+      proximaAcao: null,
+      proximaAcaoData: null,
+    },
+  });
+
+  return { updated: result.count };
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -622,11 +747,13 @@ export async function scheduleFollowup1ForTodayLeads() {
   const tomorrow = new Date(start);
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
+  const now = new Date();
 
   const empresas = await prisma.empresa.findMany({
     where: {
       statusFunil: StatusFunil.MENSAGEM_1_ENVIADA,
       OR: [{ proximaAcao: null }, { proximaAcao: "" }],
+      AND: [{ OR: [{ noResponseUntil: null }, { noResponseUntil: { lte: now } }] }],
       interacoes: {
         some: {
           tipo: TipoInteracao.MENSAGEM_1,
@@ -656,11 +783,13 @@ export async function scheduleFollowup1ForTodayLeads() {
  */
 export async function getEmpresasPendentesFollowUp1() {
   const limit = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now = new Date();
 
   return prisma.empresa.findMany({
     where: {
       statusFunil: StatusFunil.MENSAGEM_1_ENVIADA,
       OR: [{ proximaAcao: null }, { proximaAcao: "" }],
+      AND: [{ OR: [{ noResponseUntil: null }, { noResponseUntil: { lte: now } }] }],
       interacoes: {
         some: {
           tipo: TipoInteracao.MENSAGEM_1,
@@ -710,6 +839,7 @@ export async function autoScheduleFollowup1After24h() {
       statusFunil: StatusFunil.MENSAGEM_1_ENVIADA,
       AND: [
         { OR: [{ proximaAcao: null }, { proximaAcao: "" }] },
+        { OR: [{ noResponseUntil: null }, { noResponseUntil: { lte: now } }] },
         {
           OR: [
             { dataMensagem1: { lte: limit } },
@@ -747,12 +877,14 @@ export async function autoScheduleFollowup1After24h() {
  */
 export async function getEmpresasPendentesFollowUpConversa() {
   const limit = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now = new Date();
 
   return prisma.empresa.findMany({
     where: {
       statusFunil: StatusFunil.EM_CONVERSA,
       dataReuniao: null,
       OR: [{ proximaAcao: null }, { proximaAcao: "" }],
+      AND: [{ OR: [{ noResponseUntil: null }, { noResponseUntil: { lte: now } }] }],
       interacoes: {
         some: {
           data: { lte: limit },

@@ -81,6 +81,7 @@ function mapInteracaoTipo(tipo: TipoInteracao) {
     MENSAGEM_INSTAGRAM: "Mensagem Instagram",
     LIGACAO: "Ligação",
     REUNIAO: "Reunião",
+    BREAKUP: "Break-up",
     OUTRO: "Outro",
   };
   return map[tipo];

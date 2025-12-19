@@ -6,6 +6,7 @@ vi.mock("@/lib/env", () => ({
 
 vi.mock("@/lib/data", () => ({
   ensureFollowup2Consistency: vi.fn().mockResolvedValue(undefined),
+  applyNoResponseCadenceStop: vi.fn().mockResolvedValue({ updated: 0 }),
   scheduleFollowup1ForTodayLeads: vi.fn().mockResolvedValue({ updated: 1 }),
   autoScheduleFollowup1After24h: vi.fn().mockResolvedValue({ updated: 0 }),
   marcarFollowUpConversaComoProximaAcao: vi.fn().mockResolvedValue({ updated: 2 }),

@@ -11,10 +11,15 @@ enum StatusFunil {
   NOVO
   MENSAGEM_1_ENVIADA
   RESPONDEU
+  OBJ_CONFIANCA
+  GATEKEEPER
+  PREVIEW_ENVIADO
   EM_CONVERSA
   REUNIAO_AGENDADA
   REUNIAO_REALIZADA
   PROPOSTA_ENVIADA
+  SEM_RESPOSTA_30D
+  NURTURE
   FECHADO
   PERDIDO
   FOLLOWUP_LONGO
@@ -70,7 +75,22 @@ enum TipoInteracao {
   MENSAGEM_INSTAGRAM
   LIGACAO
   REUNIAO
+  BREAKUP
   OUTRO
+}
+
+enum InteracaoDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum InteracaoOutcome {
+  NEUTRO
+  RESPONDEU
+  PEDIU_PRECO
+  OBJ_CONFIANCA
+  GATEKEEPER
+  PREVIEW_ENVIADO
 }
 
 model User {
@@ -111,6 +131,12 @@ model Empresa {
   dataFechamento       DateTime?
   proximaAcao          String?
   proximaAcaoData      DateTime?
+  attemptCount         Int               @default(0)
+  lastOutboundAt        DateTime?
+  lastInboundAt         DateTime?
+  noResponseUntil       DateTime?
+  currentTemplate       String?
+  currentCadenceStep    String?
   tags                 String[]
   observacoes          String?
   interacoes           Interacao[]
@@ -138,6 +164,9 @@ model Interacao {
   canal     Canal
   data      DateTime
   descricao String
+  direction InteracaoDirection?
+  templateId String?
+  outcome   InteracaoOutcome?
   createdAt DateTime   @default(now())
 
   @@index([empresaId, data])

@@ -5,8 +5,8 @@ import { Phone, ExternalLink, Copy } from "lucide-react";
 import type { EmpresaWithInteracoes } from "@/lib/data";
 import { canalLabels, origemLabels } from "@/lib/dictionaries";
 import { formatRelative } from "@/lib/utils";
-import { modelosFollowUp1 } from "@/lib/modelosFollowup";
 import { modelosAbertura } from "@/lib/modelosAbertura";
+import { CADENCE_TEMPLATES, resolveM1TemplateId } from "@/lib/cadence";
 import { Button } from "../ui/button";
 
 export function LeadDetailPanel({ lead }: { lead: EmpresaWithInteracoes | null }) {
@@ -14,7 +14,9 @@ export function LeadDetailPanel({ lead }: { lead: EmpresaWithInteracoes | null }
     return <div className="card p-4 text-sm text-muted">Selecione um lead para ver os detalhes.</div>;
   }
 
-  const modeloFollow = lead.modeloAbertura ? modelosFollowUp1[lead.modeloAbertura] : null;
+  const m1TemplateId = resolveM1TemplateId(lead.currentTemplate, lead.id);
+  const m1Template = CADENCE_TEMPLATES[m1TemplateId];
+  const followupTemplate = CADENCE_TEMPLATES.FU1;
   const modeloAbertura = lead.modeloAbertura ? modelosAbertura.find((m) => m.codigo === lead.modeloAbertura) : null;
 
   return (
@@ -63,22 +65,41 @@ export function LeadDetailPanel({ lead }: { lead: EmpresaWithInteracoes | null }
         <p>Última: {lead.interacoes[0] ? formatRelative(lead.interacoes[0].data) : formatRelative(lead.updatedAt)}</p>
       </div>
 
-      {modeloFollow ? (
+      {m1Template ? (
         <div className="space-y-2 rounded-lg border border-primary/30 bg-background-elevated/70 p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-foreground">{modeloFollow.titulo}</p>
+            <p className="text-xs font-semibold text-foreground">Mensagem 1 ({m1TemplateId})</p>
             <Button
               size="sm"
               variant="outline"
               className="h-9 px-2 py-1 text-[11px]"
               onClick={async () => {
-                await navigator.clipboard.writeText(modeloFollow.texto);
+                await navigator.clipboard.writeText(m1Template.text);
               }}
             >
               <Copy size={14} /> Copiar
             </Button>
           </div>
-          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{modeloFollow.texto}</p>
+          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{m1Template.text}</p>
+        </div>
+      ) : null}
+
+      {followupTemplate ? (
+        <div className="space-y-2 rounded-lg border border-primary/30 bg-background-elevated/70 p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-foreground">{followupTemplate.title}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 px-2 py-1 text-[11px]"
+              onClick={async () => {
+                await navigator.clipboard.writeText(followupTemplate.text);
+              }}
+            >
+              <Copy size={14} /> Copiar
+            </Button>
+          </div>
+          <p className="whitespace-pre-line text-xs text-muted leading-relaxed">{followupTemplate.text}</p>
         </div>
       ) : modeloAbertura ? (
         <div className="space-y-2 rounded-lg border border-stroke/60 bg-background-elevated p-3">

@@ -16,6 +16,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     <div className="space-y-4 md:space-y-5">
       <KpiGrid data={data} />
       <TrendChart data={data.trend30d} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ReplyRateCard data={data.replyRateByTemplate} />
+        <StepUpCard data={data.stepUp} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <NextActionsList items={data.prioritizedActions.slice(0, 8)} />
@@ -167,6 +171,72 @@ function TrendChart({ data }: { data: DashboardData["trend7d"] }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ReplyRateCard({ data }: { data: DashboardData["replyRateByTemplate"] }) {
+  return (
+    <div className="card card-hover p-4">
+      <div className="flex items-center justify-between pb-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Reply rate por template</p>
+          <p className="text-xs text-muted">Respostas atribuídas por variante M1</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {data.length ? (
+          data.map((item) => (
+            <div key={item.templateId} className="flex items-center justify-between rounded-lg border border-stroke/60 bg-background-elevated px-3 py-2 text-xs">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{item.templateId}</p>
+                <p className="text-[11px] text-muted">
+                  {item.inbound} respostas • {item.outbound} envios
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-semibold text-primary">{Math.round(item.rate)}%</p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-xs text-muted">Sem dados suficientes ainda.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepUpCard({ data }: { data: DashboardData["stepUp"] }) {
+  return (
+    <div className="card card-hover p-4">
+      <div className="flex items-center justify-between pb-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Step-up rate</p>
+          <p className="text-xs text-muted">Respondeu → Em conversa → Proposta → Fechado</p>
+        </div>
+      </div>
+      <div className="space-y-2 text-xs">
+        <div className="flex items-center justify-between rounded-lg border border-stroke/60 bg-background-elevated px-3 py-2">
+          <span className="text-muted">Respondeu → Em conversa</span>
+          <span className="font-semibold text-foreground">{Math.round(data.rateConversa)}%</span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-stroke/60 bg-background-elevated px-3 py-2">
+          <span className="text-muted">Em conversa → Proposta</span>
+          <span className="font-semibold text-foreground">{Math.round(data.rateProposta)}%</span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-stroke/60 bg-background-elevated px-3 py-2">
+          <span className="text-muted">Proposta → Fechado</span>
+          <span className="font-semibold text-foreground">{Math.round(data.rateFechado)}%</span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-background-elevated px-3 py-2">
+          <span className="text-muted">Fechado / Respondeu</span>
+          <span className="font-semibold text-primary">{Math.round(data.rateFechadoSobreResposta)}%</span>
+        </div>
+        <p className="text-[11px] text-muted">
+          Base: {data.respondeu} respondeu • {data.emConversa} em conversa • {data.proposta} propostas • {data.fechado} fechados
+        </p>
       </div>
     </div>
   );

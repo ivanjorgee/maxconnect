@@ -7,6 +7,7 @@ import type { EmpresaWithInteracoes } from "@/lib/data";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
 import { MacroTipo } from "@/lib/proximaAcao";
+import { CADENCE_TEMPLATES, resolveM1TemplateId, type CadenceTemplateId } from "@/lib/cadence";
 import { Button } from "../ui/button";
 
 type Props = {
@@ -14,6 +15,8 @@ type Props = {
   open?: boolean;
   onClose?: () => void;
 };
+
+type CadenceTemplateView = { id: CadenceTemplateId; title: string; text: string };
 
 export function ProspeccaoSession({ empresas, open = false, onClose }: Props) {
   const queue = useMemo(() => buildQueue(empresas), [empresas]);
@@ -29,10 +32,12 @@ export function ProspeccaoSession({ empresas, open = false, onClose }: Props) {
   const contato = buildContato(atual);
   const modeloAtivo = modelosAbertura.find((m) => m.codigo === (modelo || atual.modeloAbertura)) ?? modelosAbertura[0];
   const modeloCodigo = modeloAtivo?.codigo as ModeloAbertura;
+  const macro = inferMacro(atual);
+  const template = getTemplateForMacro(macro, atual);
+  const templateIdLabel = template?.id ?? "—";
 
   async function concluir() {
     setProcessing(true);
-    const macro = inferMacro(atual);
     const payload: Record<string, unknown> = { macro, modeloAbertura: modeloCodigo || null };
     const response = await fetch(`/api/companies/${atual.id}/macro`, {
       method: "POST",
@@ -108,22 +113,22 @@ export function ProspeccaoSession({ empresas, open = false, onClose }: Props) {
             </div>
 
             <div className="mt-2 rounded-lg border border-stroke/60 bg-background-soft p-3 text-sm">
-              <p className="text-xs uppercase tracking-wide text-muted">Mensagem 1 ({modeloAtivo.codigo})</p>
-              <p className="font-semibold text-foreground">{modeloAtivo.titulo}</p>
-              <p className="mt-2 whitespace-pre-line text-muted leading-relaxed">{modeloAtivo.texto}</p>
+              <p className="text-xs uppercase tracking-wide text-muted">Mensagem ({templateIdLabel})</p>
+              <p className="font-semibold text-foreground">{template?.title ?? "Mensagem pronta"}</p>
+              <p className="mt-2 whitespace-pre-line text-muted leading-relaxed">{template?.text ?? "Sem mensagem configurada."}</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
               <Button
                 variant="outline"
-                onClick={() => navigator.clipboard.writeText(modeloAtivo.texto)}
+                onClick={() => template?.text && navigator.clipboard.writeText(template.text)}
                 className="w-full border-primary/60 text-primary hover:bg-primary/10"
               >
-                Copiar Mensagem 1
+                Copiar mensagem
               </Button>
               {contato?.url ? (
                 <a
-                  href={`${contato.url}?text=${encodeURIComponent(modeloAtivo.texto)}`}
+                  href={`${contato.url}?text=${encodeURIComponent(template?.text ?? "")}`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-background shadow-glow-primary"
@@ -207,6 +212,19 @@ function buildQueue(empresas: EmpresaWithInteracoes[]) {
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
   return empresas
     .filter((empresa) => {
+      const blockedUntil = empresa.noResponseUntil ? toDate(empresa.noResponseUntil) : null;
+      if (blockedUntil && blockedUntil > end) return false;
+      if (
+        [
+          StatusFunil.FECHADO,
+          StatusFunil.PERDIDO,
+          StatusFunil.SEM_RESPOSTA_30D,
+          StatusFunil.NURTURE,
+          StatusFunil.FOLLOWUP_LONGO,
+        ].includes(empresa.statusFunil)
+      ) {
+        return false;
+      }
       const proxima = empresa.proximaAcaoData ? toDate(empresa.proximaAcaoData) : null;
       if (proxima && proxima <= end) return true;
       if (proxima && proxima < start) return true;
@@ -231,11 +249,29 @@ function buildContato(empresa: Empresa) {
 function inferMacro(empresa: EmpresaWithInteracoes): MacroTipo {
   if (empresa.statusFunil === StatusFunil.NOVO) return "MENSAGEM_1";
   if (empresa.proximaAcao === "FOLLOW_UP_1") return "FOLLOWUP_1";
+  if (empresa.proximaAcao === "BREAKUP") return "BREAKUP";
   if (empresa.proximaAcao === "FOLLOW_UP_2" || empresa.statusFunil === StatusFunil.FOLLOWUP_LONGO) return "FOLLOWUP_2";
   if (empresa.statusFunil === StatusFunil.REUNIAO_AGENDADA) return "REUNIAO_REALIZADA";
   if (empresa.statusFunil === StatusFunil.REUNIAO_REALIZADA) return "PROPOSTA_ENVIADA";
   if (empresa.statusFunil === StatusFunil.PROPOSTA_ENVIADA) return "FOLLOWUP_1";
   return "FOLLOWUP_1";
+}
+
+function getTemplateForMacro(macro: MacroTipo, empresa: EmpresaWithInteracoes): CadenceTemplateView | null {
+  if (macro === "FOLLOWUP_1") {
+    return { id: "FU1", ...CADENCE_TEMPLATES.FU1 };
+  }
+  if (macro === "FOLLOWUP_2") {
+    return { id: "FU2", ...CADENCE_TEMPLATES.FU2 };
+  }
+  if (macro === "BREAKUP") {
+    return { id: "BREAKUP", ...CADENCE_TEMPLATES.BREAKUP };
+  }
+  if (macro === "MENSAGEM_1") {
+    const id = resolveM1TemplateId(empresa.currentTemplate, empresa.id);
+    return { id, ...CADENCE_TEMPLATES[id] };
+  }
+  return null;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {

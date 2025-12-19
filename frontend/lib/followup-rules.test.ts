@@ -58,4 +58,38 @@ describe("followup rules", () => {
 
     expect(result).toBe(true);
   });
+
+  it("nao marca followup 1 quando noResponseUntil esta no futuro", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-02T12:30:00.000Z"));
+
+    const result = isFollowup1Pending({
+      statusFunil: StatusFunil.MENSAGEM_1_ENVIADA,
+      proximaAcao: null,
+      noResponseUntil: new Date("2024-01-10T12:00:00.000Z"),
+      interacoes: baseInteracoes,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it("nao marca followup conversa quando noResponseUntil esta no futuro", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-02T12:30:00.000Z"));
+
+    const result = isConversaPending({
+      statusFunil: StatusFunil.EM_CONVERSA,
+      proximaAcao: null,
+      dataReuniao: null,
+      noResponseUntil: new Date("2024-01-10T12:00:00.000Z"),
+      interacoes: [
+        {
+          tipo: TipoInteracao.FOLLOWUP_CONVERSA,
+          data: new Date("2024-01-01T10:00:00.000Z"),
+        },
+      ],
+    });
+
+    expect(result).toBe(false);
+  });
 });

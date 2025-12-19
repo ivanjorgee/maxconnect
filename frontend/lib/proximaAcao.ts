@@ -1,6 +1,15 @@
-import { Prisma, StatusFunil, TipoInteracao, Canal, ModeloAbertura } from "@prisma/client";
+import {
+  Prisma,
+  StatusFunil,
+  TipoInteracao,
+  Canal,
+  ModeloAbertura,
+  InteracaoDirection,
+  InteracaoOutcome,
+} from "@prisma/client";
 import { prisma } from "./prisma";
 import { ProximaAcao } from "./proxima-acao";
+import { CADENCE_TEMPLATES, CadenceTemplateId, getCadenceConfig, getCadenceStepForTemplate, resolveM1TemplateId } from "./cadence";
 
 export type { ProximaAcao } from "./proxima-acao";
 
@@ -46,7 +55,12 @@ export function getProximaAcaoSugerida(ctx: ContextoProximaAcao): { proximaAcao:
   if (
     ctx.statusFunil === StatusFunil.FECHADO ||
     ctx.statusFunil === StatusFunil.PERDIDO ||
-    ctx.statusFunil === StatusFunil.FOLLOWUP_LONGO
+    ctx.statusFunil === StatusFunil.FOLLOWUP_LONGO ||
+    ctx.statusFunil === StatusFunil.SEM_RESPOSTA_30D ||
+    ctx.statusFunil === StatusFunil.NURTURE ||
+    ctx.statusFunil === StatusFunil.OBJ_CONFIANCA ||
+    ctx.statusFunil === StatusFunil.GATEKEEPER ||
+    ctx.statusFunil === StatusFunil.PREVIEW_ENVIADO
   ) {
     return { proximaAcao: null, proximaAcaoData: null };
   }
@@ -74,10 +88,12 @@ export type MacroTipo =
   | "MENSAGEM_1"
   | "FOLLOWUP_1"
   | "FOLLOWUP_2"
+  | "BREAKUP"
   | "REUNIAO_AGENDADA"
   | "REUNIAO_REALIZADA"
   | "PROPOSTA_ENVIADA"
   | "CONVERSA_INICIADA"
+  | "RESPONDEU"
   | "PERDIDO";
 
 const macroConfig: Record<
@@ -108,10 +124,17 @@ const macroConfig: Record<
   },
   FOLLOWUP_2: {
     tipoInteracao: TipoInteracao.FOLLOWUP_2,
-    novoStatus: StatusFunil.FOLLOWUP_LONGO,
+    novoStatus: StatusFunil.MENSAGEM_1_ENVIADA,
     descricao: () => "Follow-up 2 enviado.",
-    proximaAcao: "FOLLOW_UP_LONGO",
-    proximaAcaoOffsetDays: 90, // follow-up longo em ~3 meses
+    proximaAcao: "BREAKUP",
+    proximaAcaoOffsetDays: 7,
+  },
+  BREAKUP: {
+    tipoInteracao: TipoInteracao.BREAKUP,
+    novoStatus: StatusFunil.SEM_RESPOSTA_30D,
+    descricao: () => "Break-up enviado.",
+    proximaAcao: null,
+    proximaAcaoData: null,
   },
   REUNIAO_AGENDADA: {
     tipoInteracao: TipoInteracao.REUNIAO,
@@ -138,6 +161,13 @@ const macroConfig: Record<
     novoStatus: StatusFunil.EM_CONVERSA,
     descricao: () => "Conversa iniciada com o lead.",
     proximaAcao: null,
+  },
+  RESPONDEU: {
+    tipoInteracao: TipoInteracao.OUTRO,
+    novoStatus: StatusFunil.RESPONDEU,
+    descricao: () => "Lead respondeu.",
+    proximaAcao: null,
+    proximaAcaoData: null,
   },
   PERDIDO: {
     tipoInteracao: TipoInteracao.OUTRO,
@@ -167,6 +197,28 @@ export async function registrarInteracaoMacro(params: {
   const dataReuniaoEscolhida =
     params.macro === "REUNIAO_AGENDADA" && params.data ? new Date(params.data) : empresa.dataReuniao ?? null;
   const baseTime = dataInteracao;
+  const currentTemplate = empresa.currentTemplate;
+  const resolveCadenceTemplate = (): CadenceTemplateId | null => {
+    if (params.macro === "MENSAGEM_1") return resolveM1TemplateId(currentTemplate, empresa.id);
+    if (params.macro === "FOLLOWUP_1") return "FU1";
+    if (params.macro === "FOLLOWUP_2") return "FU2";
+    if (params.macro === "BREAKUP") return "BREAKUP";
+    if (params.macro === "RESPONDEU" && currentTemplate && currentTemplate in CADENCE_TEMPLATES) {
+      return currentTemplate as CadenceTemplateId;
+    }
+    return null;
+  };
+  const cadenceTemplateId = resolveCadenceTemplate();
+  const cadenceStep = cadenceTemplateId ? getCadenceStepForTemplate(cadenceTemplateId) : null;
+  const outboundCadence = Boolean(cadenceTemplateId);
+  const direction =
+    params.macro === "RESPONDEU"
+      ? InteracaoDirection.INBOUND
+      : outboundCadence
+        ? InteracaoDirection.OUTBOUND
+        : null;
+  const outcome =
+    direction === InteracaoDirection.INBOUND ? InteracaoOutcome.RESPONDEU : direction === InteracaoDirection.OUTBOUND ? InteracaoOutcome.NEUTRO : null;
 
   const proximaData =
     cfg.proximaAcao === "REALIZAR_REUNIAO" && dataReuniaoEscolhida
@@ -179,9 +231,9 @@ export async function registrarInteracaoMacro(params: {
             ? addDays(startOfDay(baseTime), cfg.proximaAcaoOffsetDays)
             : null;
 
-  const descricao = `${cfg.descricao({ modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura })}${
-    params.descricaoExtra ? ` ${params.descricaoExtra}` : ""
-  }`;
+  const descricaoBase = cfg.descricao({ modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura });
+  const templateSuffix = cadenceTemplateId ? ` (${cadenceTemplateId})` : "";
+  const descricao = `${descricaoBase}${templateSuffix}${params.descricaoExtra ? ` ${params.descricaoExtra}` : ""}`;
 
   return prisma.$transaction(async (tx) => {
     await tx.interacao.create({
@@ -191,6 +243,9 @@ export async function registrarInteracaoMacro(params: {
         canal: params.canal ?? empresa.canalPrincipal,
         data: dataInteracao,
         descricao,
+        direction: direction ?? undefined,
+        templateId: cadenceTemplateId ?? undefined,
+        outcome: outcome ?? undefined,
       },
     });
 
@@ -206,6 +261,27 @@ export async function registrarInteracaoMacro(params: {
       modeloAbertura: params.modeloAbertura ?? empresa.modeloAbertura ?? undefined,
     };
 
+    if (direction === InteracaoDirection.OUTBOUND && cadenceTemplateId) {
+      updateData.attemptCount = { increment: 1 };
+      updateData.lastOutboundAt = dataInteracao;
+      updateData.currentTemplate = cadenceTemplateId;
+      updateData.currentCadenceStep = cadenceStep;
+    }
+
+    if (params.macro === "RESPONDEU") {
+      updateData.lastInboundAt = dataInteracao;
+      updateData.noResponseUntil = null;
+      updateData.proximaAcao = null;
+      updateData.proximaAcaoData = null;
+    }
+
+    if (params.macro === "BREAKUP") {
+      const { noResponseDays } = getCadenceConfig();
+      updateData.noResponseUntil = addDays(startOfDay(dataInteracao), noResponseDays);
+      updateData.proximaAcao = null;
+      updateData.proximaAcaoData = null;
+    }
+
     const updated = await tx.empresa.update({
       where: { id: empresa.id },
       data: updateData,
@@ -213,7 +289,17 @@ export async function registrarInteracaoMacro(params: {
         interacoes: {
           orderBy: { data: "desc" },
           take: 5,
-          select: { id: true, tipo: true, canal: true, data: true, descricao: true, createdAt: true },
+          select: {
+            id: true,
+            tipo: true,
+            canal: true,
+            data: true,
+            descricao: true,
+            direction: true,
+            templateId: true,
+            outcome: true,
+            createdAt: true,
+          },
         },
       },
     });
@@ -234,6 +320,8 @@ export async function registerFollowupConversa(empresaId: string) {
         canal: empresa.canalPrincipal,
         data: agora,
         descricao: "Follow-up de conversa enviado após 24h sem avanço.",
+        direction: InteracaoDirection.OUTBOUND,
+        outcome: InteracaoOutcome.NEUTRO,
       },
     });
 
@@ -249,7 +337,17 @@ export async function registerFollowupConversa(empresaId: string) {
         interacoes: {
           orderBy: { data: "desc" },
           take: 5,
-          select: { id: true, tipo: true, canal: true, data: true, descricao: true, createdAt: true },
+          select: {
+            id: true,
+            tipo: true,
+            canal: true,
+            data: true,
+            descricao: true,
+            direction: true,
+            templateId: true,
+            outcome: true,
+            createdAt: true,
+          },
         },
       },
     });
