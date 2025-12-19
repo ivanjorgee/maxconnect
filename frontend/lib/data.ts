@@ -543,11 +543,15 @@ async function getTrendData(days: number, responseStatuses: StatusFunil[]) {
   const end = new Date();
   const start = startOfDay(addDays(end, -(days - 1)));
   const dateKey = (value: Date) => value.toISOString().slice(0, 10);
+  const mensagemTipo = Prisma.sql`${TipoInteracao.MENSAGEM_1}::"TipoInteracao"`;
+  const responseStatusesSql = Prisma.join(
+    responseStatuses.map((status) => Prisma.sql`${status}::"StatusFunil"`)
+  );
 
   const mensagensRows = await prisma.$queryRaw<{ day: Date; count: number }[]>(Prisma.sql`
     SELECT date_trunc('day', "data") AS day, COUNT(*)::int AS count
     FROM "Interacao"
-    WHERE "tipo" = ${TipoInteracao.MENSAGEM_1}
+    WHERE "tipo" = ${mensagemTipo}
       AND "data" >= ${start}
     GROUP BY day
   `);
@@ -555,7 +559,7 @@ async function getTrendData(days: number, responseStatuses: StatusFunil[]) {
   const respostasRows = await prisma.$queryRaw<{ day: Date; count: number }[]>(Prisma.sql`
     SELECT date_trunc('day', "updatedAt") AS day, COUNT(*)::int AS count
     FROM "Empresa"
-    WHERE "statusFunil" IN (${Prisma.join(responseStatuses)})
+    WHERE "statusFunil" IN (${responseStatusesSql})
       AND "updatedAt" >= ${start}
     GROUP BY day
   `);
