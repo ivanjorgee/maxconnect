@@ -17,6 +17,7 @@ type Props = {
 const cidadeOptions = [
   { label: "Belém, PA", value: "Belém,PA" },
   { label: "Ananindeua, PA", value: "Ananindeua,PA" },
+  { label: "Santarém, PA", value: "Santarém,PA" },
 ];
 
 export function CompanyEditModal({ company, onSaved }: Props) {

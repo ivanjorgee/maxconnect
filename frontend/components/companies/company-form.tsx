@@ -12,6 +12,7 @@ import { modelosAbertura } from "@/lib/modelosAbertura";
 const cidadeOptions = [
   { label: "Belém, PA", value: "Belém,PA" },
   { label: "Ananindeua, PA", value: "Ananindeua,PA" },
+  { label: "Santarém, PA", value: "Santarém,PA" },
 ];
 
 type Props = {
