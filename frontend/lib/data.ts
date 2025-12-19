@@ -12,7 +12,7 @@ import {
   InteracaoOutcome,
 } from "@prisma/client";
 import { prisma } from "./prisma";
-import { getCadenceConfig } from "./cadence";
+import { getCadenceConfig } from "./cadence-config";
 
 const interacoesSelect = {
   id: true,

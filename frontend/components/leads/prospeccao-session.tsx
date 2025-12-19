@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Link as LinkIcon, MessageCircle, X
 import type { EmpresaWithInteracoes } from "@/lib/data";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
-import { MacroTipo } from "@/lib/proximaAcao";
+import type { MacroTipo } from "@/lib/proximaAcao";
 import { CADENCE_TEMPLATES, resolveM1TemplateId, type CadenceTemplateId } from "@/lib/cadence";
 import { Button } from "../ui/button";
 

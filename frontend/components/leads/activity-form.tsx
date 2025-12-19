@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { canalLabels } from "@/lib/dictionaries";
 import type { EmpresaWithInteracoes } from "@/lib/data";
-import { MacroTipo } from "@/lib/proximaAcao";
+import type { MacroTipo } from "@/lib/proximaAcao";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { CADENCE_TEMPLATES, type CadenceTemplateId, resolveM1TemplateId } from "@/lib/cadence";
 import { formatDate, formatRelative } from "@/lib/utils";

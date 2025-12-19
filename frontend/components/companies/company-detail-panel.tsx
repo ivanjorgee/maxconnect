@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { TagList } from "@/components/ui/tag-list";
 import { modelosAbertura } from "@/lib/modelosAbertura";
 import { formatRelative } from "@/lib/utils";
-import { MacroTipo } from "@/lib/proximaAcao";
+import type { MacroTipo } from "@/lib/proximaAcao";
 import { CADENCE_TEMPLATES, resolveM1TemplateId } from "@/lib/cadence";
 import { isConversaPending, isFollowup1Pending } from "@/lib/followup-rules";
 import { FollowupConversaAction } from "./followup-conversa-action";

@@ -9,7 +9,8 @@ import {
 } from "@prisma/client";
 import { prisma } from "./prisma";
 import { ProximaAcao } from "./proxima-acao";
-import { CADENCE_TEMPLATES, CadenceTemplateId, getCadenceConfig, getCadenceStepForTemplate, resolveM1TemplateId } from "./cadence";
+import { CADENCE_TEMPLATES, CadenceTemplateId, getCadenceStepForTemplate, resolveM1TemplateId } from "./cadence";
+import { getCadenceConfig } from "./cadence-config";
 
 export type { ProximaAcao } from "./proxima-acao";
 
